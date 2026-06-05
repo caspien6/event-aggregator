@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EventCalendarCollector.Web/EventCalendarCollector.Web.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,14 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+## Secrets
+appsettings.secrets.json
+*.json.bak
+
+## Credentials
+*-credentials.json
+*-c4d548b322df.json

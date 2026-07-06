@@ -4,6 +4,7 @@ using EventCalendarCollector.Web.Publishing;
 using EventCalendarCollector.Web.Publishing.Google;
 using EventCalendarCollector.Web.Scrapers.A38;
 using EventCalendarCollector.Web.Scrapers.BudapestPark;
+using EventCalendarCollector.Web.Scrapers.Kobuci;
 using Hangfire;
 using Hangfire.MemoryStorage;
 using Scalar.AspNetCore;
@@ -17,6 +18,8 @@ builder.Services.AddSingleton<A38EventParser>();
 builder.Services.AddScraper<A38Scraper>();
 builder.Services.AddSingleton<BudapestParkEventParser>();
 builder.Services.AddScraper<BudapestParkScraper>();
+builder.Services.AddSingleton<KobuciEventParser>();
+builder.Services.AddScraper<KobuciScraper>();
 
 // Publisher
 builder.Services.AddSingleton<ICalendarPublisher, GoogleCalendarPublisher>();
@@ -51,6 +54,12 @@ RecurringJob.AddOrUpdate<EventSyncJob>(
     "budapestpark-sync",
     job => job.RunSingleAsync("BudapestPark", CancellationToken.None),
     app.Configuration["Scrapers:BudapestPark:CronSchedule"] ?? "0 3-23/6 * * *");
+
+// Kobuci-only sync, offset from the other jobs
+RecurringJob.AddOrUpdate<EventSyncJob>(
+    "kobuci-sync",
+    job => job.RunSingleAsync("Kobuci", CancellationToken.None),
+    app.Configuration["Scrapers:Kobuci:CronSchedule"] ?? "0 1-23/6 * * *");
 
 // Manual trigger endpoints
 app.MapPost("/api/sync/run", async (IBackgroundJobClient jobs) =>

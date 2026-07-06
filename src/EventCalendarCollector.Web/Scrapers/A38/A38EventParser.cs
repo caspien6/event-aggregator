@@ -52,15 +52,15 @@ public class A38EventParser
         if (string.IsNullOrEmpty(startTimeString)) return null;
         var startTime = DateTime.Parse(startTimeString);
 
-        var venue = li.QuerySelector("div.eventHeader-presents span")?.TextContent.Trim();
-        var description = li.QuerySelector(".eventCard__details__description p")?.TextContent.Trim();
-        var ticketStatus = li.QuerySelector(".eventCard__ticketblock__prices__info eventCard__ticketblock__prices__item--info")?.TextContent.Trim();
-        var genres = li.QuerySelectorAll(".genre")
+        string? venue = $"A38 - {li.QuerySelector("div.eventHeader-presents span")?.TextContent?.Trim() ?? ""} ";
+        string? description = li.QuerySelector(".eventCard__details__description p")?.TextContent.Trim();
+        string? ticketStatus = li.QuerySelector(".eventCard__ticketblock__prices__info eventCard__ticketblock__prices__item--info")?.TextContent.Trim();
+        List<string> genres = li.QuerySelectorAll(".genre")
             .Select(g => g.TextContent.Trim())
             .Where(g => !string.IsNullOrEmpty(g))
             .ToList();
 
-        var url = href.StartsWith("http") ? href : $"https://a38.hu{href}";
+        string? url = href.StartsWith("http") ? href : $"https://a38.hu{href}";
 
         return new ScrapedEvent(
             SourceId: $"a38:{slug}",

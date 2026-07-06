@@ -43,7 +43,8 @@ public class EventSyncJob
 
     private async Task RunOneAsync(IEventScraper scraper, CancellationToken ct)
     {
-        var result = await scraper.ScrapeAsync(ct);
+        ScraperResult result = await scraper.ScrapeAsync(ct);
+        
         if (!result.Success)
         {
             _logger.LogError("Scraper {Source} failed: {Error}", scraper.SourceName, result.ErrorMessage);

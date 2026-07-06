@@ -8,9 +8,20 @@ namespace EventCalendarCollector.Web.Publishing.Google;
 
 public class GoogleCalendarPublisher : ICalendarPublisher
 {
+    // Google Calendar events only support 11 fixed colors; names outside that
+    // palette are aliased to the closest one (e.g. Pumpkin -> Tangerine).
+    private static readonly Dictionary<string, string> ColorIdByName = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Lavender"] = "1", ["Sage"] = "2", ["Grape"] = "3", ["Flamingo"] = "4",
+        ["Banana"] = "5", ["Tangerine"] = "6", ["Peacock"] = "7", ["Graphite"] = "8",
+        ["Blueberry"] = "9", ["Basil"] = "10", ["Tomato"] = "11",
+        ["Pumpkin"] = "6"
+    };
+
     private readonly CalendarService _service;
     private readonly string _calendarId;
     private readonly ILogger<GoogleCalendarPublisher> _logger;
+    private readonly Dictionary<string, string> _colorIdBySource;
 
     public GoogleCalendarPublisher(IConfiguration config, ILogger<GoogleCalendarPublisher> logger)
     {
@@ -20,6 +31,16 @@ public class GoogleCalendarPublisher : ICalendarPublisher
 
         var credFile = config["GoogleCalendar:ServiceAccountFile"]
             ?? throw new InvalidOperationException("GoogleCalendar:ServiceAccountFile is not configured.");
+
+        _colorIdBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in config.GetSection("GoogleCalendar:EventColors").GetChildren())
+        {
+            if (entry.Value is null) continue;
+            if (ColorIdByName.TryGetValue(entry.Value, out var colorId))
+                _colorIdBySource[entry.Key] = colorId;
+            else
+                _logger.LogWarning("Unknown event color '{Color}' configured for source {Source}", entry.Value, entry.Key);
+        }
 
 #pragma warning disable CS0618 // FromJson is deprecated in favour of CredentialFactory, update when that API stabilises
         var credential = GoogleCredential
@@ -89,7 +110,7 @@ public class GoogleCalendarPublisher : ICalendarPublisher
         return ids;
     }
 
-    private static Event BuildCalendarEvent(ScrapedEvent ev, string stableId)
+    private Event BuildCalendarEvent(ScrapedEvent ev, string stableId)
     {
         var description = BuildDescription(ev);
         var endTime = ev.EndTime ?? ev.StartTime.AddHours(3);
@@ -102,7 +123,8 @@ public class GoogleCalendarPublisher : ICalendarPublisher
             Location = ev.Venue,
             Start = new EventDateTime { DateTimeDateTimeOffset = ev.StartTime },
             End = new EventDateTime { DateTimeDateTimeOffset = endTime },
-            Source = new Event.SourceData { Title = ev.SourceName, Url = ev.Url }
+            Source = new Event.SourceData { Title = ev.SourceName, Url = ev.Url },
+            ColorId = _colorIdBySource.GetValueOrDefault(ev.SourceName)
         };
     }
 

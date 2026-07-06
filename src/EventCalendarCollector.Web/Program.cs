@@ -3,6 +3,7 @@ using EventCalendarCollector.Web.Jobs;
 using EventCalendarCollector.Web.Publishing;
 using EventCalendarCollector.Web.Publishing.Google;
 using EventCalendarCollector.Web.Scrapers.A38;
+using EventCalendarCollector.Web.Scrapers.BudapestPark;
 using Hangfire;
 using Hangfire.MemoryStorage;
 using Scalar.AspNetCore;
@@ -14,6 +15,8 @@ builder.Configuration.AddJsonFile("appsettings.secrets.json", optional: true, re
 // Scrapers
 builder.Services.AddSingleton<A38EventParser>();
 builder.Services.AddScraper<A38Scraper>();
+builder.Services.AddSingleton<BudapestParkEventParser>();
+builder.Services.AddScraper<BudapestParkScraper>();
 
 // Publisher
 builder.Services.AddSingleton<ICalendarPublisher, GoogleCalendarPublisher>();
@@ -37,11 +40,17 @@ app.MapScalarApiReference();
 // Hangfire dashboard
 app.UseHangfireDashboard(app.Configuration["Hangfire:DashboardPath"] ?? "/hangfire");
 
-// Register recurring job
+// Register recurring jobs
 RecurringJob.AddOrUpdate<EventSyncJob>(
     "full-sync",
     job => job.RunAsync(CancellationToken.None),
     app.Configuration["Scrapers:A38:CronSchedule"] ?? "0 */6 * * *");
+
+// BudapestPark-only sync, offset from the full sync
+RecurringJob.AddOrUpdate<EventSyncJob>(
+    "budapestpark-sync",
+    job => job.RunSingleAsync("BudapestPark", CancellationToken.None),
+    app.Configuration["Scrapers:BudapestPark:CronSchedule"] ?? "0 3-23/6 * * *");
 
 // Manual trigger endpoints
 app.MapPost("/api/sync/run", async (IBackgroundJobClient jobs) =>

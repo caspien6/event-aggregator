@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AngleSharp;
-using EventCalendarCollector.Web.Domain;
+using Model.Domain;
 using TimeZoneConverter;
 
 namespace EventCalendarCollector.Web.Scrapers.BudapestPark;

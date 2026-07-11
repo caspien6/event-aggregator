@@ -1,6 +1,6 @@
 using AngleSharp;
 using AngleSharp.Dom;
-using EventCalendarCollector.Web.Domain;
+using Model.Domain;
 using TimeZoneConverter;
 
 namespace EventCalendarCollector.Web.Scrapers.A38;

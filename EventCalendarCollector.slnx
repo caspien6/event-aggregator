@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="BLL/EventCalendarCollector.BLL.csproj" Id="a5563f3b-b120-44c5-b4a5-cd3b96cc67b8" />
+    <Project Path="Model/EventCalendarCollector.Model.csproj" Id="f93c2ea2-e97e-4442-be5f-3e6f319fbbb7" />
     <Project Path="src/EventCalendarCollector.Web/EventCalendarCollector.Web.csproj" />
   </Folder>
 </Solution>

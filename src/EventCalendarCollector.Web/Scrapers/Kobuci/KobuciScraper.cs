@@ -1,4 +1,6 @@
-using EventCalendarCollector.Web.Domain;
+
+
+using Model.Domain;
 
 namespace EventCalendarCollector.Web.Scrapers.Kobuci;
 

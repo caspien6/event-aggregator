@@ -1,11 +1,12 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using EventCalendarCollector.Web.Domain;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Calendar.v3;
 using Google.Apis.Calendar.v3.Data;
 using Google.Apis.Services;
+using Model.Domain;
+using Model.DTOs;
 
 namespace EventCalendarCollector.Web.Publishing.Google;
 
@@ -29,7 +30,7 @@ public class GoogleCalendarPublisher : ICalendarPublisher
     public GoogleCalendarPublisher(IConfiguration config, ILogger<GoogleCalendarPublisher> logger)
     {
         _logger = logger;
-        _calendarId = config["GoogleCalendar:CalendarId"]
+        _calendarId = config["GoogleCalendar:CalendarId"] 
             ?? throw new InvalidOperationException("GoogleCalendar:CalendarId is not configured.");
 
         var credFile = config["GoogleCalendar:ServiceAccountFile"]
@@ -38,7 +39,10 @@ public class GoogleCalendarPublisher : ICalendarPublisher
         _colorIdBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in config.GetSection("GoogleCalendar:EventColors").GetChildren())
         {
-            if (entry.Value is null) continue;
+            if (entry.Value is null)
+            {
+                continue;
+            }
             if (ColorIdByName.TryGetValue(entry.Value, out var colorId))
                 _colorIdBySource[entry.Key] = colorId;
             else
@@ -60,14 +64,12 @@ public class GoogleCalendarPublisher : ICalendarPublisher
 
     public async Task PublishAsync(IReadOnlyList<ScrapedEvent> events, CancellationToken ct = default)
     {
-        var existing = await FetchExistingEventsAsync(ct);
-
-        foreach (var ev in events)
+        ExistingEventDto existing = await FetchExistingEventsAsync(ct);
+        
+        IReadOnlyList<GoogleScrapedEventDto> googleCalendarEvents = events.Select(e => new GoogleScrapedEventDto(e)).ToList();
+        
+        foreach (GoogleScrapedEventDto ev in googleCalendarEvents)
         {
-            var stableId = ToGoogleEventId(ev.SourceId);
-            var isCancelled = ev.TicketStatus?.Contains("Cancel", StringComparison.OrdinalIgnoreCase) == true
-                           || ev.TicketStatus?.Contains("Elmarad", StringComparison.OrdinalIgnoreCase) == true;
-
             // The same real-world event may already be in the calendar from
             // another scraper under a different name; recognize it by the URLs
             // pointing at the original event.
@@ -77,7 +79,7 @@ public class GoogleCalendarPublisher : ICalendarPublisher
                 foreach (var candidate in ev.OriginalEventUrls)
                 {
                     var key = NormalizeUrlKey(candidate);
-                    if (key is not null && existing.ByUrlKey.TryGetValue(key, out var match) && match.Id != stableId)
+                    if (key is not null && existing.ByUrlKey.TryGetValue(key, out var match) && match.Id != ev.GoogleEventId)
                     {
                         urlMatch = match;
                         break;
@@ -88,18 +90,18 @@ public class GoogleCalendarPublisher : ICalendarPublisher
             // If this event once got its own entry (e.g. the URL evidence was
             // missing on an earlier run) and now matches another scraper's
             // entry, remove the standalone duplicate.
-            if (urlMatch is not null && existing.Ids.Contains(stableId))
+            if (urlMatch is not null && existing.Ids.Contains(ev.GoogleEventId))
             {
-                await _service.Events.Delete(_calendarId, stableId).ExecuteAsync(ct);
-                existing.Ids.Remove(stableId);
+                await _service.Events.Delete(_calendarId, ev.GoogleEventId).ExecuteAsync(ct);
+                existing.Ids.Remove(ev.GoogleEventId);
                 _logger.LogInformation("Deleted duplicate entry of {Title}; it matches an existing event by URL", ev.Title);
             }
 
-            if (isCancelled)
+            if (ev.IsCancelled)
             {
-                if (existing.Ids.Contains(stableId))
+                if (existing.Ids.Contains(ev.GoogleEventId))
                 {
-                    await _service.Events.Delete(_calendarId, stableId).ExecuteAsync(ct);
+                    await _service.Events.Delete(_calendarId, ev.GoogleEventId).ExecuteAsync(ct);
                     _logger.LogInformation("Deleted cancelled event: {Title}", ev.Title);
                 }
                 else if (urlMatch is not null)
@@ -112,16 +114,20 @@ public class GoogleCalendarPublisher : ICalendarPublisher
                 continue;
             }
 
-            var targetId = existing.Ids.Contains(stableId) ? stableId : urlMatch?.Id ?? stableId;
+            var targetId = existing.Ids.Contains(ev.GoogleEventId) ? ev.GoogleEventId : urlMatch?.Id ?? ev.GoogleEventId;
             var calEvent = BuildCalendarEvent(ev, targetId, fallbackColorId: urlMatch?.ColorId);
 
             if (existing.Ids.Contains(targetId))
             {
                 await _service.Events.Update(calEvent, _calendarId, targetId).ExecuteAsync(ct);
                 if (urlMatch is not null)
+                {
                     _logger.LogInformation("Updated existing event matched by URL: {Title}", ev.Title);
+                }
                 else
+                {
                     _logger.LogDebug("Updated event: {Title}", ev.Title);
+                }
             }
             else
             {
@@ -129,9 +135,9 @@ public class GoogleCalendarPublisher : ICalendarPublisher
                 {
                     await _service.Events.Insert(calEvent, _calendarId).ExecuteAsync(ct);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    _service.Events.Delete(_calendarId, stableId);
+                    _service.Events.Delete(_calendarId, ev.GoogleEventId);
                     await _service.Events.Insert(calEvent, _calendarId).ExecuteAsync(ct);
                 }
                 _logger.LogDebug("Created event: {Title}", ev.Title);
@@ -139,11 +145,7 @@ public class GoogleCalendarPublisher : ICalendarPublisher
         }
     }
 
-    private sealed record ExistingEvents(
-        HashSet<string> Ids,
-        Dictionary<string, (string Id, string? ColorId)> ByUrlKey);
-
-    private async Task<ExistingEvents> FetchExistingEventsAsync(CancellationToken ct)
+    private async Task<ExistingEventDto> FetchExistingEventsAsync(CancellationToken ct)
     {
         var ids = new HashSet<string>();
         var byUrlKey = new Dictionary<string, (string, string?)>();
@@ -157,7 +159,11 @@ public class GoogleCalendarPublisher : ICalendarPublisher
             var page = await req.ExecuteAsync(ct);
             foreach (var ev in page.Items ?? [])
             {
-                if (ev.Id is null) continue;
+                if (ev.Id is null)
+                {
+                    continue;
+                }
+
                 ids.Add(ev.Id);
 
                 // Index every URL the entry's JSON description carries so other
@@ -167,13 +173,19 @@ public class GoogleCalendarPublisher : ICalendarPublisher
                 {
                     var key = NormalizeUrlKey(url);
                     if (key is not null)
+                    {
                         byUrlKey.TryAdd(key, (ev.Id, ev.ColorId));
+                    }
                 }
             }
             req.PageToken = page.NextPageToken;
         } while (req.PageToken is not null);
 
-        return new ExistingEvents(ids, byUrlKey);
+        return new ExistingEventDto
+        {
+            Ids = ids,
+            ByUrlKey = byUrlKey
+        };
     }
 
     // Reduces a URL to "host|last-path-segment" so the same event matches across
@@ -227,9 +239,12 @@ public class GoogleCalendarPublisher : ICalendarPublisher
     private static IReadOnlyList<string> ExtractUrlsFromDescription(string? description)
     {
         if (string.IsNullOrWhiteSpace(description))
+        { 
             return [];
+        }
 
         DescriptionDetails? details;
+        
         try
         {
             details = JsonSerializer.Deserialize<DescriptionDetails>(description, DescriptionJsonOptions);
@@ -238,25 +253,26 @@ public class GoogleCalendarPublisher : ICalendarPublisher
         {
             return [];
         }
+
         if (details is null)
+        {
             return [];
+        }
 
         var urls = new List<string>();
+        
         if (!string.IsNullOrEmpty(details.Url))
+        {
             urls.Add(details.Url);
+        }
+
         if (details.OriginalEventUrls is not null)
+        {
             urls.AddRange(details.OriginalEventUrls);
+        }
+
         return urls;
     }
 
     private sealed record DescriptionDetails(string? Url, IReadOnlyList<string>? OriginalEventUrls);
-
-    // Google Calendar event IDs must be 5-1024 chars, [a-v0-9] only.
-    // Hex chars (0-9, a-f) are a valid subset of that alphabet.
-    private static string ToGoogleEventId(string sourceId)
-    {
-        var hash = System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(sourceId));
-        return Convert.ToHexString(hash).ToLowerInvariant();
-    }
 }

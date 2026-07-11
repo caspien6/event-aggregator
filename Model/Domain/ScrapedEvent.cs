@@ -1,4 +1,4 @@
-namespace EventCalendarCollector.Web.Domain;
+namespace Model.Domain;
 
 public record ScrapedEvent(
     string SourceId,

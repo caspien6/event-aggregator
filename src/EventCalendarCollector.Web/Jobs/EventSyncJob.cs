@@ -1,5 +1,6 @@
 using EventCalendarCollector.Web.Publishing;
 using EventCalendarCollector.Web.Scrapers;
+using Model.Domain;
 
 namespace EventCalendarCollector.Web.Jobs;
 

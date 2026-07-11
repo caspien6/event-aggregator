@@ -1,4 +1,4 @@
-using EventCalendarCollector.Web.Domain;
+using Model.Domain;
 
 namespace EventCalendarCollector.Web.Publishing;
 

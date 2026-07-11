@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✦ Day Agenda ✦</title>
+<style>
+/* ================================================================
+   Y2K DAY AGENDA — palette + theme tokens
+   Light: #6959cf #7b67ef #a8a2e2 #ffb3e4 #ff6bb5
+   Dark:  #1b2e5a #4b9fc3 #7fd4e1 #d3c5e7
+   ================================================================ */
+:root {
+  /* light palette */
+  --c1: #6959cf;
+  --c2: #7b67ef;
+  --c3: #a8a2e2;
+  --c4: #ffb3e4;
+  --c5: #ff6bb5;
+
+  /* semantic tokens (light) */
+  --bg-a: #a8a2e2;
+  --bg-b: #ffb3e4;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-solid: #ffffff;
+  --text: #2d2160;
+  --text-soft: #6959cf;
+  --accent: #7b67ef;
+  --accent-strong: #6959cf;
+  --live: #ff6bb5;
+  --allday: #7b67ef;
+  --allday-bg: rgba(123, 103, 239, 0.14);
+  --border: rgba(105, 89, 207, 0.35);
+  --chip-bg: rgba(255, 255, 255, 0.55);
+  --chip-active-bg: linear-gradient(135deg, #7b67ef, #ff6bb5);
+  --chip-active-text: #ffffff;
+  --rail: linear-gradient(180deg, #7b67ef, #ff6bb5);
+  --btn-bg: linear-gradient(180deg, #ffffff 0%, #ffb3e4 100%);
+  --btn-border: #6959cf;
+  --glow: rgba(255, 107, 181, 0.45);
+  --error: #c02565;
+  --error-bg: rgba(255, 107, 181, 0.14);
+  --mono-bg: rgba(45, 33, 96, 0.08);
+  --shadow: 0 4px 18px rgba(105, 89, 207, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* dark palette */
+    --c1: #1b2e5a;
+    --c2: #4b9fc3;
+    --c3: #7fd4e1;
+    --c4: #d3c5e7;
+
+    /* semantic tokens (dark) */
+    --bg-a: #101c3d;
+    --bg-b: #1b2e5a;
+    --surface: rgba(75, 159, 195, 0.13);
+    --surface-solid: #22366a;
+    --text: #d3c5e7;
+    --text-soft: #7fd4e1;
+    --accent: #4b9fc3;
+    --accent-strong: #7fd4e1;
+    --live: #7fd4e1;
+    --allday: #4b9fc3;
+    --allday-bg: rgba(75, 159, 195, 0.18);
+    --border: rgba(127, 212, 225, 0.32);
+    --chip-bg: rgba(75, 159, 195, 0.15);
+    --chip-active-bg: linear-gradient(135deg, #4b9fc3, #7fd4e1);
+    --chip-active-text: #1b2e5a;
+    --rail: linear-gradient(180deg, #4b9fc3, #7fd4e1);
+    --btn-bg: linear-gradient(180deg, #2c4278 0%, #1b2e5a 100%);
+    --btn-border: #7fd4e1;
+    --glow: rgba(127, 212, 225, 0.45);
+    --error: #ff8cc6;
+    --error-bg: rgba(255, 140, 198, 0.12);
+    --mono-bg: rgba(0, 0, 0, 0.28);
+    --shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  /* Y2K font stack: bubbly humanist faces of the era */
+  font-family: "Trebuchet MS", "Verdana", "Tahoma", "Segoe UI", sans-serif;
+  color: var(--text);
+  background: fixed linear-gradient(160deg, var(--bg-a) 0%, var(--bg-b) 100%);
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Y2K header ---------- */
+header.site {
+  text-align: center;
+  padding: 26px 8px 10px;
+}
+header.site h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 900;
+  background: linear-gradient(90deg, var(--accent-strong), var(--live), var(--accent-strong));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 22px var(--glow);
+}
+header.site .tagline {
+  font-size: 0.72rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  margin-top: 4px;
+}
+
+/* ---------- generic card / button ---------- */
+.card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+button, .btn {
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--btn-bg);
+  border: 2px solid var(--btn-border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px var(--glow);
+}
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.55; cursor: wait; }
+
+a { color: var(--accent-strong); }
+
+/* ---------- setup screen ---------- */
+#setupScreen { padding: 28px 24px; margin-top: 24px; }
+#setupScreen h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+#setupScreen p { line-height: 1.55; font-size: 0.92rem; }
+#setupScreen input[type="password"] {
+  width: 100%;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 10px 14px;
+  margin: 12px 0;
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+}
+#setupScreen input[type="password"]:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 10px var(--glow);
+}
+#setupError {
+  color: var(--error);
+  background: var(--error-bg);
+  border: 1px solid var(--error);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+
+/* ---------- sticky date navigation ---------- */
+nav.datebar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-top: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+nav.datebar .navbtn {
+  min-width: 44px;
+  min-height: 40px;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+nav.datebar input[type="date"] {
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 7px 10px;
+}
+#dateLabel {
+  flex: 1 1 100%;
+  order: 5;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+}
+#dateLabel .today-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--chip-active-text);
+  background: var(--chip-active-bg);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
+nav.datebar .spacer { flex: 1; }
+
+/* narrow screens: reflow so buttons stay tappable */
+@media (max-width: 480px) {
+  nav.datebar { justify-content: center; }
+  nav.datebar .spacer { display: none; }
+  nav.datebar .navbtn { flex: 1 1 30%; }
+  nav.datebar input[type="date"] { flex: 1 1 100%; order: 4; }
+}
+
+/* ---------- toolbar ---------- */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 6px;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+}
+.toolbar a { cursor: pointer; text-decoration: underline; }
+
+/* ---------- venue + category filter chips ---------- */
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 2px 14px;
+}
+#venueChips { padding-bottom: 6px; }
+.chip {
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: var(--chip-bg);
+  color: var(--text);
+  font-weight: 700;
+}
+.chip.active {
+  background: var(--chip-active-bg);
+  color: var(--chip-active-text);
+  border-color: transparent;
+  box-shadow: 0 0 12px var(--glow);
+}
+
+/* ---------- event cards ---------- */
+.event-card {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+  overflow: hidden;
+  animation: riseIn 0.35s ease both;
+}
+.event-card .times {
+  flex: 0 0 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.event-card .times .end { opacity: 0.65; font-size: 0.78rem; font-weight: 400; }
+.event-card .rail {
+  flex: 0 0 4px;
+  background: var(--rail);
+  border-radius: 4px;
+  margin: 12px 0;
+}
+.event-card .body { flex: 1; padding: 12px 16px; min-width: 0; }
+.event-card .title {
+  margin: 0 0 4px;
+  font-size: 1.02rem;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+.event-card .meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+}
+.event-card .desc {
+  font-size: 0.83rem;
+  line-height: 1.45;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* live (in-progress) */
+.event-card.live { border-color: var(--live); box-shadow: 0 0 16px var(--glow); }
+.event-card.live .rail { background: var(--live); }
+.now-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  color: var(--chip-active-text);
+  background: var(--live);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
+.now-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* all-day */
+.event-card.allday { background: var(--allday-bg); border-color: var(--allday); }
+.event-card.allday .rail { background: var(--allday); }
+.event-card.allday .times {
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  color: var(--allday);
+}
+
+/* ---------- state cards (loading / empty / error) ---------- */
+.state {
+  text-align: center;
+  padding: 42px 24px;
+  margin-top: 8px;
+  animation: riseIn 0.35s ease both;
+}
+.state .big { font-size: 2rem; margin-bottom: 10px; }
+.state p { margin: 6px 0; font-size: 0.9rem; }
+.state.error { border-color: var(--error); }
+.state.error h3 { color: var(--error); margin: 0 0 8px; }
+.state .detail {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 0.78rem;
+  text-align: left;
+  background: var(--mono-bg);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  overflow-wrap: break-word;
+}
+.spinner {
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent-strong);
+  animation: spin 0.9s linear infinite;
+}
+
+/* ---------- animations ---------- */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(0.75); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .event-card, .state { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="site">
+    <h1>✦ Day Agenda ✦</h1>
+    <div class="tagline">live from google calendar</div>
+  </header>
+
+  <!-- ============ SETUP SCREEN (API key entry) ============ -->
+  <section id="setupScreen" class="card hidden">
+    <h2>One-time setup</h2>
+    <p>
+      This calendar is <strong>public</strong> — all you need is a free, read-only
+      <strong>Google Calendar API key</strong> to load it. Create one at
+      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">
+        console.cloud.google.com/apis/credentials</a>
+      (enable the Google Calendar API, then "Create credentials → API key").
+      The key is kept only in this browser tab's session storage.
+    </p>
+    <form id="setupForm">
+      <input type="password" id="apiKeyInput" placeholder="Paste your API key…"
+             autocomplete="off" spellcheck="false" required>
+      <button type="submit" id="setupSubmit">Unlock calendar ✦</button>
+    </form>
+    <div id="setupError" class="hidden"></div>
+  </section>
+
+  <!-- ============ CALENDAR VIEW ============ -->
+  <section id="calendarScreen" class="hidden">
+    <nav class="datebar card">
+      <button class="navbtn" id="prevBtn" type="button" aria-label="Previous day">◀</button>
+      <button class="navbtn" id="nextBtn" type="button" aria-label="Next day">▶</button>
+      <span class="spacer"></span>
+      <input type="date" id="datePicker" aria-label="Pick a date">
+      <div id="dateLabel"></div>
+    </nav>
+
+    <div class="toolbar">
+      <span id="updatedLabel"></span>
+      <a id="changeKeyLink">Change API key</a>
+    </div>
+
+    <div class="chips" id="venueChips"></div>
+    <div class="chips" id="categoryChips"></div>
+
+    <main id="agenda"></main>
+  </section>
+</div>
+
+<script>
+"use strict";
+(function () {
+
+  /* ==============================================================
+     CONFIGURATION
+     ============================================================== */
+  const CALENDAR_ID = "96c8d6bcbeba42023df634a73008064ffd79155009ccbcae8e6de39dbb39acc8@group.calendar.google.com";
+  const API_KEY_STORAGE = "gcal_api_key";     // sessionStorage key
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000;  // auto-refresh cadence
+  const LIVE_TICK_MS = 60 * 1000;             // live-status re-check cadence
+  const DAY_START_HOUR = 8;                   // agenda day starts at 8:00 AM
+  const VENUES = ["A38", "Budapest Park", "Kobuci"];  // location filter chips
+  const CATEGORIES = ["Bolhás Macska", "Concert", "Party"]; // category filter chips
+
+  /* ==============================================================
+     STATE
+     ============================================================== */
+  let selectedDate = startOfDay(new Date()); // day currently shown
+  let events = [];                           // fetched events for selectedDate
+  let activeVenue = null;                    // null = "All venues"
+  let activeCategories = [];                 // empty = all categories
+  let fetchSeq = 0;                          // out-of-order response guard
+  let refreshTimer = null;                   // auto-refresh interval id
+  let liveTimer = null;                      // live-tick interval id
+
+  /* ==============================================================
+     DOM REFERENCES
+     ============================================================== */
+  const $setup       = document.getElementById("setupScreen");
+  const $setupForm   = document.getElementById("setupForm");
+  const $setupSubmit = document.getElementById("setupSubmit");
+  const $setupError  = document.getElementById("setupError");
+  const $apiKeyInput = document.getElementById("apiKeyInput");
+  const $calendar    = document.getElementById("calendarScreen");
+  const $prevBtn     = document.getElementById("prevBtn");
+  const $nextBtn     = document.getElementById("nextBtn");
+  const $datePicker  = document.getElementById("datePicker");
+  const $dateLabel   = document.getElementById("dateLabel");
+  const $updated     = document.getElementById("updatedLabel");
+  const $changeKey   = document.getElementById("changeKeyLink");
+  const $chips       = document.getElementById("venueChips");
+  const $catChips    = document.getElementById("categoryChips");
+  const $agenda      = document.getElementById("agenda");
+
+  /* ==============================================================
+     INIT
+     ============================================================== */
+  document.addEventListener("DOMContentLoaded", function () {
+    // wire static controls
+    $setupForm.addEventListener("submit", onSetupSubmit);
+    $prevBtn.addEventListener("click", function () { shiftDay(-1); });
+    $nextBtn.addEventListener("click", function () { shiftDay(1); });
+    $datePicker.addEventListener("change", function () {
+      const d = ymdToDate($datePicker.value);
+      if (d) { selectedDate = d; onDateChanged(); }
+    });
+    $changeKey.addEventListener("click", function () {
+      resetToSetup("");
+    });
+    buildVenueChips();
+    buildCategoryChips();
+
+    // key already stored this session? → straight to calendar view
+    if (sessionStorage.getItem(API_KEY_STORAGE)) {
+      enterCalendarView(null);
+    } else {
+      showSetupScreen("");
+    }
+  });
+
+  /* ==============================================================
+     SETUP SCREEN
+     ============================================================== */
+  function showSetupScreen(message) {
+    stopTimers();
+    $calendar.classList.add("hidden");
+    $setup.classList.remove("hidden");
+    if (message) {
+      $setupError.textContent = message;
+      $setupError.classList.remove("hidden");
+    } else {
+      $setupError.classList.add("hidden");
+    }
+    $setupSubmit.disabled = false;
+  }
+
+  // Clears the stored key and returns to setup (auth failures + "Change API key").
+  function resetToSetup(message) {
+    sessionStorage.removeItem(API_KEY_STORAGE);
+    fetchSeq++; // invalidate any in-flight fetch
+    showSetupScreen(message);
+  }
+
+  async function onSetupSubmit(ev) {
+    ev.preventDefault();
+    const key = $apiKeyInput.value.trim();
+    if (!key) return;
+    $setupSubmit.disabled = true;
+    $setupError.classList.add("hidden");
+    try {
+      // Validate by really fetching the selected day. Only store on success.
+      const items = await fetchDayEvents(key, selectedDate);
+      sessionStorage.setItem(API_KEY_STORAGE, key);
+      $apiKeyInput.value = "";
+      enterCalendarView(items); // reuse the fetched events — no second request
+    } catch (err) {
+      $setupSubmit.disabled = false;
+      $setupError.textContent = friendlyError(err);
+      $setupError.classList.remove("hidden");
+    }
+  }
+
+  /* ==============================================================
+     CALENDAR VIEW
+     ============================================================== */
+  // preloadedEvents: events already fetched during key validation, or null.
+  function enterCalendarView(preloadedEvents) {
+    $setup.classList.add("hidden");
+    $calendar.classList.remove("hidden");
+    syncDateControls();
+    startTimers();
+    if (preloadedEvents) {
+      events = preloadedEvents;
+      setUpdatedNow();
+      renderAgenda();
+    } else {
+      loadDay(true);
+    }
+  }
+
+  function shiftDay(delta) {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + delta);
+    selectedDate = startOfDay(d);
+    onDateChanged();
+  }
+
+  function onDateChanged() {
+    syncDateControls();
+    loadDay(true);
+  }
+
+  // Keep the picker and label in sync with selectedDate.
+  function syncDateControls() {
+    $datePicker.value = dateToYMD(selectedDate);
+    const label = selectedDate.toLocaleDateString(undefined, {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+    $dateLabel.innerHTML = escapeHtml(label) +
+      (isSameDay(selectedDate, new Date()) ? '<span class="today-tag">Today</span>' : "");
+  }
+
+  function setUpdatedNow() {
+    $updated.textContent = "Updated " + fmtTime(new Date()) + " · auto-refreshes every 5 min";
+  }
+
+  /* --------------- venue filter chips --------------- */
+  function buildVenueChips() {
+    const names = [null].concat(VENUES); // null = All venues
+    $chips.innerHTML = "";
+    names.forEach(function (venue) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = venue === null ? "All venues" : venue;
+      b.addEventListener("click", function () {
+        activeVenue = venue;
+        updateChipStates();
+        renderAgenda(); // client-side only — no network request
+      });
+      b.dataset.venue = venue === null ? "" : venue;
+      $chips.appendChild(b);
+    });
+    updateChipStates();
+  }
+
+  function updateChipStates() {
+    Array.prototype.forEach.call($chips.children, function (chip) {
+      const v = chip.dataset.venue || null;
+      chip.classList.toggle("active", v === activeVenue);
+    });
+  }
+
+  /* --------------- category filter chips (multi-select) --------------- */
+  function buildCategoryChips() {
+    const names = [null].concat(CATEGORIES); // null = All categories
+    $catChips.innerHTML = "";
+    names.forEach(function (category) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = category === null ? "All categories" : category;
+      b.addEventListener("click", function () {
+        if (category === null) {
+          activeCategories = []; // empty selection = show every event
+        } else {
+          const idx = activeCategories.indexOf(category);
+          if (idx === -1) activeCategories.push(category);
+          else activeCategories.splice(idx, 1); // toggle off
+        }
+        updateCategoryChipStates();
+        renderAgenda(); // client-side only — no network request
+      });
+      b.dataset.category = category === null ? "" : category;
+      $catChips.appendChild(b);
+    });
+    updateCategoryChipStates();
+  }
+
+  function updateCategoryChipStates() {
+    Array.prototype.forEach.call($catChips.children, function (chip) {
+      const c = chip.dataset.category || null;
+      chip.classList.toggle("active",
+        c === null ? activeCategories.length === 0 : activeCategories.indexOf(c) !== -1);
+    });
+  }
+
+  /* ==============================================================
+     API — Google Calendar REST v3
+     ============================================================== */
+  // Fetches events for one agenda day: DAY_START_HOUR → following midnight.
+  // Starting at 8 AM (not midnight) hides small-hours events and keeps
+  // events that cross midnight from also showing up on the next day,
+  // since the API matches by time-window overlap.
+  async function fetchDayEvents(key, day) {
+    const timeMin = new Date(day);
+    timeMin.setHours(DAY_START_HOUR, 0, 0, 0);
+    const timeMax = new Date(day);
+    timeMax.setDate(timeMax.getDate() + 1);
+    timeMax.setHours(0, 0, 0, 0);
+
+    const params = new URLSearchParams({
+      key: key,
+      singleEvents: "true",
+      orderBy: "startTime",
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      maxResults: "100"
+    });
+    const url = "https://www.googleapis.com/calendar/v3/calendars/" +
+      encodeURIComponent(CALENDAR_ID) + "/events?" + params.toString();
+
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (netErr) {
+      throw { network: true, message: "Couldn't reach Google Calendar — check your connection and try again." };
+    }
+
+    if (!res.ok) {
+      let apiMessage = res.status + " " + res.statusText;
+      try {
+        const body = await res.json();
+        if (body && body.error && body.error.message) apiMessage = body.error.message;
+      } catch (ignored) { /* non-JSON error body */ }
+      throw {
+        status: res.status,
+        message: apiMessage,
+        auth: res.status === 401 || res.status === 403 ||
+              (res.status === 400 && /api key/i.test(apiMessage))
+      };
+    }
+
+    const data = await res.json();
+    return (data.items || [])
+      .filter(function (item) { return item.status !== "cancelled"; })
+      .map(mapEvent);
+  }
+
+  // Map an API item to the shape the renderer uses.
+  function mapEvent(item) {
+    const allDay = !(item.start && item.start.dateTime);
+    let start, end;
+    if (allDay) {
+      // all-day events use "YYYY-MM-DD" — parse manually as LOCAL dates;
+      // new Date("YYYY-MM-DD") parses as UTC and can shift the day.
+      start = ymdToDate(item.start && item.start.date);
+      end = ymdToDate(item.end && item.end.date);
+    } else {
+      start = new Date(item.start.dateTime);
+      end = new Date(item.end && item.end.dateTime ? item.end.dateTime : item.start.dateTime);
+    }
+    // the collector stores a JSON-serialized ScrapedEvent in the
+    // description — parse it once, then read description + categories
+    const raw = item.description || "";
+    const collector = parseCollectorJson(raw);
+    let description = raw; // legacy plain-text events shown as-is
+    if (collector) {
+      const d = collector.description !== undefined ? collector.description : collector.Description;
+      description = typeof d === "string" ? d : ""; // omitted when null → no description
+    }
+    const cats = collector && (collector.categories || collector.Categories);
+
+    return {
+      title: item.summary || "(untitled event)",
+      start: start,
+      end: end,
+      allDay: allDay,
+      location: item.location || "",
+      description: description,
+      categories: Array.isArray(cats)
+        ? cats.filter(function (c) { return typeof c === "string"; })
+        : []
+    };
+  }
+
+  // The collector stores a JSON-serialized ScrapedEvent (camelCase keys)
+  // in the calendar event's description. Parse it back out; anything
+  // that isn't that JSON shape returns null so legacy plain-text
+  // events keep working.
+  function parseCollectorJson(raw) {
+    if (!raw) return null;
+    // try the raw text first, then a tag-stripped copy in case Google
+    // wrapped the stored JSON in HTML markup
+    const candidates = [raw, stripTags(raw)];
+    for (let i = 0; i < candidates.length; i++) {
+      const text = candidates[i].trim();
+      if (text.charAt(0) !== "{") continue;
+      try {
+        const obj = JSON.parse(text);
+        if (obj && typeof obj === "object") return obj;
+      } catch (ignored) { /* not valid JSON — fall through */ }
+    }
+    return null;
+  }
+
+  /* --------------- day loading with stale-response guard --------------- */
+  // userInitiated: show the loading state; background refreshes stay quiet.
+  async function loadDay(userInitiated) {
+    const key = sessionStorage.getItem(API_KEY_STORAGE);
+    if (!key) { showSetupScreen(""); return; }
+
+    const seq = ++fetchSeq; // capture; discard result if superseded
+    if (userInitiated) renderLoading();
+
+    try {
+      const items = await fetchDayEvents(key, selectedDate);
+      if (seq !== fetchSeq) return; // stale response — discard
+      events = items;
+      setUpdatedNow();
+      renderAgenda();
+    } catch (err) {
+      if (seq !== fetchSeq) return; // stale error — discard
+      if (err.auth) {
+        // key rejected → wipe it, stop timers, back to setup with the reason
+        resetToSetup("Google rejected the API key: " + err.message);
+        return;
+      }
+      if (userInitiated) {
+        renderError(err);
+      }
+      // background-refresh failure: keep the current list on screen
+    }
+  }
+
+  /* ==============================================================
+     RENDERING
+     ============================================================== */
+  function renderLoading() {
+    $agenda.innerHTML =
+      '<div class="state card">' +
+        '<div class="spinner" role="status" aria-label="Loading"></div>' +
+        "<p>Loading events…</p>" +
+      "</div>";
+  }
+
+  function renderError(err) {
+    const friendly = friendlyError(err);
+    const technical = err.message || String(err);
+    $agenda.innerHTML =
+      '<div class="state card error">' +
+        '<div class="big">⚠</div>' +
+        "<h3>Couldn't load events</h3>" +
+        "<p>" + escapeHtml(friendly) + "</p>" +
+        // only show the monospace detail when it adds information
+        (technical !== friendly
+          ? '<div class="detail">' + escapeHtml(technical) + "</div>"
+          : "") +
+      "</div>";
+  }
+
+  function renderAgenda() {
+    const filtering = activeVenue !== null || activeCategories.length > 0;
+    const filtered = events.filter(function (e) {
+      if (activeVenue !== null && !locationMatches(e.location, activeVenue)) return false;
+      if (activeCategories.length > 0 && !hasAnyCategory(e, activeCategories)) return false;
+      return true;
+    });
+
+    // empty states
+    if (filtered.length === 0) {
+      if (filtering && events.length > 0) {
+        // the filters are hiding events that do exist
+        const parts = [];
+        if (activeVenue !== null) parts.push(escapeHtml(activeVenue));
+        if (activeCategories.length > 0) parts.push(escapeHtml(activeCategories.join(" / ")));
+        $agenda.innerHTML =
+          '<div class="state card">' +
+            '<div class="big">✧</div>' +
+            "<p>No " + parts.join(" · ") +
+            " events — try other filters or clear them.</p>" +
+          "</div>";
+      } else {
+        const today = isSameDay(selectedDate, new Date());
+        $agenda.innerHTML =
+          '<div class="state card">' +
+            '<div class="big">✧</div>' +
+            "<p>" + (today ? "No events today" : "No events on this day") + "</p>" +
+            "<p>Try hopping to another date ✦</p>" +
+          "</div>";
+      }
+      return;
+    }
+
+    // Sort at render time so ordering self-corrects as time passes:
+    // 1) in progress, 2) all-day, 3) the rest by start time.
+    const now = new Date();
+    function bucket(e) {
+      if (!e.allDay && e.start <= now && now < e.end) return 0; // live
+      if (e.allDay) return 1;
+      return 2;
+    }
+    const sorted = filtered.slice().sort(function (a, b) {
+      const ba = bucket(a), bb = bucket(b);
+      if (ba !== bb) return ba - bb;
+      return a.start - b.start;
+    });
+
+    $agenda.innerHTML = sorted.map(function (e, i) {
+      return eventCardHtml(e, now, i);
+    }).join("");
+  }
+
+  function eventCardHtml(e, now, index) {
+    const live = !e.allDay && e.start <= now && now < e.end;
+    const cls = "event-card card" + (live ? " live" : "") + (e.allDay ? " allday" : "");
+
+    const timesCol = e.allDay
+      ? "<div class=\"times\">ALL DAY</div>"
+      : '<div class="times"><span>' + escapeHtml(fmtTime(e.start)) + "</span>" +
+        '<span class="end">' + escapeHtml(fmtTime(e.end)) + "</span></div>";
+
+    const nowBadge = live
+      ? '<span class="now-badge"><span class="dot"></span>NOW</span>'
+      : "";
+
+    const metaBits = [];
+    if (e.location) metaBits.push("<span>📍 " + escapeHtml(e.location) + "</span>");
+    if (!e.allDay) {
+      metaBits.push("<span>🕑 " + escapeHtml(fmtTime(e.start) + " – " + fmtTime(e.end)) + "</span>");
+    }
+
+    // descriptions may contain HTML — strip tags, render text only
+    const descText = stripTags(e.description).trim();
+    const desc = descText
+      ? '<p class="desc">' + escapeHtml(descText) + "</p>"
+      : "";
+
+    return '<article class="' + cls + '" style="animation-delay:' + (index * 45) + 'ms">' +
+      timesCol +
+      '<div class="rail"></div>' +
+      '<div class="body">' +
+        '<h3 class="title">' + escapeHtml(e.title) + nowBadge + "</h3>" +
+        (metaBits.length ? '<div class="meta">' + metaBits.join("") + "</div>" : "") +
+        desc +
+      "</div>" +
+    "</article>";
+  }
+
+  /* ==============================================================
+     TIMERS
+     ============================================================== */
+  function startTimers() {
+    stopTimers();
+    // auto-refresh: silently re-fetch the selected day
+    refreshTimer = setInterval(function () { loadDay(false); }, REFRESH_INTERVAL_MS);
+    // live tick: quiet refresh, only while looking at today, so NOW
+    // badges and live-first ordering stay accurate
+    liveTimer = setInterval(function () {
+      if (isSameDay(selectedDate, new Date())) loadDay(false);
+    }, LIVE_TICK_MS);
+  }
+
+  function stopTimers() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+  }
+
+  /* ==============================================================
+     HELPERS
+     ============================================================== */
+  // midnight at the start of the given date (local time)
+  function startOfDay(d) {
+    const out = new Date(d);
+    out.setHours(0, 0, 0, 0);
+    return out;
+  }
+
+  function isSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  // local Date → "YYYY-MM-DD"
+  function dateToYMD(d) {
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + m + "-" + day;
+  }
+
+  // "YYYY-MM-DD" → local Date (avoids UTC parsing of new Date(str))
+  function ymdToDate(str) {
+    if (!str || !/^\d{4}-\d{2}-\d{2}$/.test(str)) return null;
+    const parts = str.split("-");
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+
+  // localized short time, e.g. "7:30 PM" / "19:30"
+  function fmtTime(d) {
+    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  // escape user-visible strings before innerHTML insertion
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  // strip HTML tags from API descriptions, keep text only
+  function stripTags(html) {
+    const doc = new DOMParser().parseFromString(String(html), "text/html");
+    return doc.body.textContent || "";
+  }
+
+  // case- and accent-insensitive substring test on the event location:
+  // NFD-normalize and strip combining marks, so "Kobuci" matches "Kóbuci"
+  function normalizeLoose(str) {
+    return String(str)
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase();
+  }
+  function locationMatches(location, venue) {
+    return normalizeLoose(location).indexOf(normalizeLoose(venue)) !== -1;
+  }
+
+  // true when the event carries at least one of the selected categories
+  // (case- and accent-insensitive, same looseness as the venue filter)
+  function hasAnyCategory(e, selected) {
+    return selected.some(function (wanted) {
+      const w = normalizeLoose(wanted);
+      return e.categories.some(function (c) { return normalizeLoose(c) === w; });
+    });
+  }
+
+  // human-friendly message for setup/error cards
+  function friendlyError(err) {
+    if (err && err.network) return err.message;
+    if (err && err.auth) return "That API key was rejected — double-check it and make sure the Google Calendar API is enabled for it.";
+    if (err && err.message) return err.message;
+    return "Something went wrong. Please try again.";
+  }
+
+})();
+</script>
+</body>
+</html>

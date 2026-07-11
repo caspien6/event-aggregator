@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Calendar — Day Agenda</title>
+<style>
+  /* ════════════════════════════════════════════════════════════
+     THEME — light by default, dark via prefers-color-scheme
+     ════════════════════════════════════════════════════════════ */
+  :root {
+    --bg:            #f4f5f9;
+    --surface:       #ffffff;
+    --surface-2:     #eef0f6;
+    --border:        #e2e5ee;
+    --text:          #1b1d26;
+    --text-soft:     #5b6070;
+    --text-faint:    #9aa0b0;
+    --accent:        #4f6df5;
+    --accent-soft:   #e7ebfe;
+    --accent-text:   #3652d9;
+    --live:          #17a56b;
+    --live-soft:     #e2f6ec;
+    --danger:        #d64545;
+    --danger-soft:   #fdecec;
+    --allday:        #8a5cf5;
+    --allday-soft:   #f0eafe;
+    --shadow:        0 1px 3px rgba(20, 24, 40, .07), 0 8px 24px rgba(20, 24, 40, .06);
+    --radius:        14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:          #101218;
+      --surface:     #1a1d27;
+      --surface-2:   #232735;
+      --border:      #2c3040;
+      --text:        #e9eaf1;
+      --text-soft:   #a6abbd;
+      --text-faint:  #6d7284;
+      --accent:      #6d86ff;
+      --accent-soft: #232c4d;
+      --accent-text: #a5b4ff;
+      --live:        #2fc487;
+      --live-soft:   #143528;
+      --danger:      #f07575;
+      --danger-soft: #3a2020;
+      --allday:      #a685ff;
+      --allday-soft: #2b2344;
+      --shadow:      0 1px 3px rgba(0, 0, 0, .35), 0 8px 24px rgba(0, 0, 0, .3);
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+  header p  { color: var(--text-soft); font-size: .9rem; margin-top: 2px; }
+
+  /* ── Date navigation bar ────────────────────────────────── */
+  .datebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    position: sticky;
+    top: 10px;
+    z-index: 5;
+  }
+  .datebar button {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    white-space: nowrap;
+  }
+  .datebar button:hover  { background: var(--accent-soft); color: var(--accent-text); }
+  .datebar button:active { transform: scale(.96); }
+
+  .date-center { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+  .date-label {
+    font-weight: 700;
+    font-size: 1.02rem;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .date-label .today-tag {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 700;
+    padding: 1px 9px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  .date-center input[type="date"] {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-size: .82rem;
+    font-family: inherit;
+    cursor: pointer;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    .date-center input[type="date"] { color-scheme: dark; }
+  }
+
+  .today-btn { align-self: center; }
+
+  /* ── Toolbar under datebar ──────────────────────────────── */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+    margin-bottom: 18px;
+    font-size: .78rem;
+    color: var(--text-faint);
+    min-height: 20px;
+  }
+  .toolbar a { color: var(--text-faint); cursor: pointer; text-decoration: underline; }
+  .toolbar a:hover { color: var(--accent-text); }
+
+  /* ── Location filter chips ──────────────────────────────── */
+  .filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 0 4px;
+  }
+  .chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: .84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s, transform .1s;
+  }
+  .chip:hover  { border-color: var(--accent); color: var(--accent-text); }
+  .chip:active { transform: scale(.96); }
+  .chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ── Event cards ────────────────────────────────────────── */
+  .event {
+    display: flex;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    animation: rise .3s ease both;
+  }
+  .event:nth-child(2) { animation-delay: .04s; }
+  .event:nth-child(3) { animation-delay: .08s; }
+  .event:nth-child(4) { animation-delay: .12s; }
+  .event:nth-child(5) { animation-delay: .16s; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .event-time {
+    flex: 0 0 74px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    padding-top: 2px;
+  }
+  .event-time .start { font-weight: 700; font-size: .95rem; }
+  .event-time .end   { color: var(--text-faint); font-size: .8rem; margin-top: 2px; }
+
+  .event-rail {
+    flex: 0 0 4px;
+    border-radius: 4px;
+    background: var(--accent);
+  }
+
+  .event-body { min-width: 0; flex: 1; }
+  .event-title { font-weight: 650; font-size: 1rem; overflow-wrap: anywhere; }
+  .event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    color: var(--text-soft);
+    font-size: .84rem;
+    margin-top: 3px;
+  }
+  .event-desc {
+    color: var(--text-soft);
+    font-size: .86rem;
+    margin-top: 8px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* In-progress events */
+  .event.live { border-color: var(--live); }
+  .event.live .event-rail { background: var(--live); }
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--live-soft);
+    color: var(--live);
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 2px 9px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  .live-badge::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--live);
+    animation: pulse 1.4s ease infinite;
+  }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  /* All-day events */
+  .event.allday { background: var(--allday-soft); border-color: transparent; }
+  .event.allday .event-rail { background: var(--allday); }
+  .event.allday .event-time .start { color: var(--allday); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ── States: loading / empty / error / setup ────────────── */
+  .state {
+    text-align: center;
+    padding: 56px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    animation: rise .3s ease both;
+  }
+  .state h3 { font-size: 1.1rem; margin-bottom: 6px; }
+  .state p  { color: var(--text-soft); font-size: .9rem; }
+  .state .emoji { font-size: 2rem; display: block; margin-bottom: 12px; }
+
+  .spinner {
+    width: 34px; height: 34px;
+    margin: 0 auto 16px;
+    border: 3px solid var(--surface-2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .state.error { border-color: var(--danger); }
+  .state.error h3 { color: var(--danger); }
+  .error-detail {
+    display: inline-block;
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-radius: 8px;
+    font-size: .8rem;
+    font-family: ui-monospace, monospace;
+    padding: 6px 12px;
+    margin-top: 12px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Setup (API key) screen */
+  .setup-form {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  .setup-form input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-family: ui-monospace, monospace;
+    font-size: .88rem;
+    width: min(320px, 100%);
+    outline: none;
+  }
+  .setup-form input:focus { border-color: var(--accent); }
+  .setup-form button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 22px;
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+  }
+  .setup-form button:hover:not(:disabled) { filter: brightness(1.1); }
+  .setup-form button:active { transform: scale(.97); }
+  .setup-form button:disabled { opacity: .6; cursor: wait; }
+  .setup-error { color: var(--danger); font-size: .84rem; margin-top: 12px; }
+  .state a { color: var(--accent-text); }
+
+  /* ── Small screens ──────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .wrap { padding-top: 12px; }
+    .datebar { flex-wrap: wrap; }
+    .date-center { order: -1; width: 100%; margin-bottom: 6px; }
+    .datebar button { flex: 1; }
+    .event { gap: 10px; padding: 12px; }
+    .event-time { flex-basis: 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>📅 Event Calendar</h1>
+    <p>Day agenda · public Google Calendar</p>
+  </header>
+
+  <!-- Date navigation (hidden until the API key is validated) -->
+  <nav class="datebar" id="datebar" hidden>
+    <button id="prev-btn" aria-label="Previous day">‹ Prev</button>
+    <div class="date-center">
+      <div class="date-label" id="date-label"></div>
+      <input type="date" id="date-picker" aria-label="Pick a date">
+    </div>
+    <button id="next-btn" aria-label="Next day">Next ›</button>
+  </nav>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <span id="refresh-info"></span>
+    <a id="change-key">Change API key</a>
+  </div>
+
+  <!-- Client-side location filter -->
+  <div class="filterbar" id="filterbar" hidden>
+    <button class="chip active" data-loc="">All venues</button>
+    <button class="chip" data-loc="A38">A38</button>
+    <button class="chip" data-loc="Budapest Park">Budapest Park</button>
+    <button class="chip" data-loc="Kobuci">Kobuci</button>
+  </div>
+
+  <!-- Everything below is rendered by JS -->
+  <main id="content"></main>
+
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIGURATION
+   The Calendar ID is supplied by the project — it identifies the
+   public Google Calendar this repository publishes events to.
+   Users never enter it; only the (free, read-only) API key is
+   asked for once per browser session.
+   ══════════════════════════════════════════════════════════════ */
+const CALENDAR_ID = "96c8d6bcbeba42023df634a73008064ffd79155009ccbcae8e6de39dbb39acc8@group.calendar.google.com";
+const API_KEY_STORAGE = "gcal_api_key";          // sessionStorage key
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;       // auto-refresh every 5 minutes
+const LIVE_TICK_MS = 60 * 1000;                  // re-check "in progress" badge every minute
+const DAY_START_HOUR = 8;                        // a day's agenda runs from 8:00 AM, not midnight
+
+/* ── State ──────────────────────────────────────────────────── */
+let selectedDate = startOfDay(new Date());  // day currently shown
+let dayEvents = [];                          // events fetched for the selected day (unfiltered)
+let locationFilter = "";                     // active venue filter ("" = all)
+let refreshTimer = null;
+let liveTimer = null;
+let fetchSeq = 0;                            // guards against out-of-order responses
+
+/* ── DOM shortcuts ──────────────────────────────────────────── */
+const $ = (id) => document.getElementById(id);
+const content = $("content");
+
+/* ══════════════════════════════════════════════════════════════
+   INIT — reuse the session-stored key, or show the setup screen
+   ══════════════════════════════════════════════════════════════ */
+window.addEventListener("DOMContentLoaded", () => {
+  $("prev-btn").addEventListener("click", () => changeDay(-1));
+  $("next-btn").addEventListener("click", () => changeDay(+1));
+  $("date-picker").addEventListener("change", (e) => {
+    if (e.target.value) setDate(parseDateInput(e.target.value));
+  });
+  $("change-key").addEventListener("click", () => {
+    sessionStorage.removeItem(API_KEY_STORAGE);
+    showSetup();
+  });
+
+  // Venue filter chips — purely client-side, re-renders the fetched list.
+  document.querySelectorAll("#filterbar .chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      locationFilter = chip.dataset.loc;
+      document.querySelectorAll("#filterbar .chip").forEach((c) =>
+        c.classList.toggle("active", c === chip));
+      renderEvents(dayEvents);
+    });
+  });
+
+  const key = sessionStorage.getItem(API_KEY_STORAGE);
+  if (key) {
+    enterCalendarView();
+  } else {
+    showSetup();
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   SETUP SCREEN — asks for the API key once per browser session
+   ══════════════════════════════════════════════════════════════ */
+function showSetup(message) {
+  stopTimers();
+  $("datebar").hidden = true;
+  $("toolbar").hidden = true;
+  $("filterbar").hidden = true;
+  content.innerHTML = `
+    <div class="state">
+      <span class="emoji">🔑</span>
+      <h3>Google API key needed</h3>
+      <p>
+        The calendar itself is public — you only need a free, read-only
+        Google Calendar API key.<br>
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">
+          Create one in Google Cloud Console</a>
+        (enable the <em>Google Calendar API</em>, then create an API key).
+      </p>
+      <form class="setup-form" id="setup-form">
+        <input id="key-input" type="password" placeholder="AIzaSy…"
+               autocomplete="off" spellcheck="false" required>
+        <button type="submit" id="setup-btn">Unlock calendar</button>
+      </form>
+      <div class="setup-error" id="setup-error">${message ? escapeHtml(message) : ""}</div>
+    </div>`;
+
+  $("setup-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const key = $("key-input").value.trim();
+    if (!key) return;
+
+    const btn = $("setup-btn");
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    $("setup-error").textContent = "";
+
+    // Validate the key by actually fetching the selected day's events.
+    try {
+      const events = await fetchEvents(key, selectedDate);
+      sessionStorage.setItem(API_KEY_STORAGE, key);  // valid → keep for this session
+      enterCalendarView(events);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Unlock calendar";
+      $("setup-error").textContent = friendlyError(err);
+    }
+  });
+
+  $("key-input").focus();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CALENDAR VIEW
+   ══════════════════════════════════════════════════════════════ */
+function enterCalendarView(preloadedEvents) {
+  $("datebar").hidden = false;
+  $("toolbar").hidden = false;
+  $("filterbar").hidden = false;
+  updateDatebar();
+  startTimers();
+  if (preloadedEvents) {
+    renderEvents(preloadedEvents);
+    noteRefreshed();
+  } else {
+    loadDay();
+  }
+}
+
+function setDate(date) {
+  selectedDate = startOfDay(date);
+  updateDatebar();
+  loadDay();
+}
+
+function changeDay(delta) {
+  const d = new Date(selectedDate);
+  d.setDate(d.getDate() + delta);
+  setDate(d);
+}
+
+function updateDatebar() {
+  const label = selectedDate.toLocaleDateString(undefined, {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+  const todayTag = isSameDay(selectedDate, new Date())
+    ? '<span class="today-tag">Today</span>' : "";
+  $("date-label").innerHTML = escapeHtml(label) + todayTag;
+  $("date-picker").value = toDateInputValue(selectedDate);
+}
+
+/* Fetch and render the selected day. */
+async function loadDay() {
+  const key = sessionStorage.getItem(API_KEY_STORAGE);
+  if (!key) { showSetup(); return; }
+
+  const seq = ++fetchSeq;
+  showLoading();
+  try {
+    const events = await fetchEvents(key, selectedDate);
+    if (seq !== fetchSeq) return;  // a newer request superseded this one
+    renderEvents(events);
+    noteRefreshed();
+  } catch (err) {
+    if (seq !== fetchSeq) return;
+    if (err.isAuth) {
+      // Invalid / revoked key → forget it and ask again.
+      sessionStorage.removeItem(API_KEY_STORAGE);
+      showSetup(friendlyError(err));
+    } else {
+      showError(err);
+    }
+  }
+}
+
+/* Silent refresh (auto-refresh timer): keep the current list visible. */
+async function refreshQuietly() {
+  const key = sessionStorage.getItem(API_KEY_STORAGE);
+  if (!key) return;
+  const seq = ++fetchSeq;
+  try {
+    const events = await fetchEvents(key, selectedDate);
+    if (seq !== fetchSeq) return;
+    renderEvents(events);
+    noteRefreshed();
+  } catch (err) {
+    if (seq !== fetchSeq) return;
+    if (err.isAuth) {
+      sessionStorage.removeItem(API_KEY_STORAGE);
+      showSetup(friendlyError(err));
+    }
+    // Non-auth errors during background refresh are ignored;
+    // the previously rendered events stay on screen.
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GOOGLE CALENDAR REST API
+   ══════════════════════════════════════════════════════════════ */
+async function fetchEvents(apiKey, day) {
+  // The agenda window runs from DAY_START_HOUR (8:00 AM) to midnight, so
+  // small-hours events (0:00–8:00) are not shown and events crossing
+  // midnight don't leak into the next day. All-day events still overlap
+  // the window, so they keep appearing.
+  const dayStart = startOfDay(day);
+  dayStart.setHours(DAY_START_HOUR);
+  const dayEnd = startOfDay(day);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const params = new URLSearchParams({
+    key: apiKey,
+    singleEvents: "true",        // expand recurring events into instances
+    orderBy: "startTime",
+    timeMin: dayStart.toISOString(),
+    timeMax: dayEnd.toISOString(),
+    maxResults: "100",
+  });
+  const url = "https://www.googleapis.com/calendar/v3/calendars/"
+            + encodeURIComponent(CALENDAR_ID) + "/events?" + params;
+
+  let res, data;
+  try {
+    res = await fetch(url);
+    data = await res.json();
+  } catch {
+    throw new Error("Network error — check your connection and try again.");
+  }
+
+  if (!res.ok) {
+    const err = new Error(data?.error?.message || `HTTP ${res.status}`);
+    // 400 "API key not valid", 401 and 403 all mean the key is unusable.
+    err.isAuth = res.status === 401 || res.status === 403 ||
+                 (res.status === 400 && /api key/i.test(err.message));
+    throw err;
+  }
+
+  return (data.items || [])
+    .filter((item) => item.status !== "cancelled")
+    .map((item) => {
+      const allDay = !item.start.dateTime;
+      return {
+        title: item.summary || "Untitled event",
+        // All-day events use date-only strings; parse them as local dates
+        // so they don't shift a day in western timezones.
+        start: allDay ? parseDateInput(item.start.date) : new Date(item.start.dateTime),
+        end: item.end
+          ? (allDay ? parseDateInput(item.end.date) : new Date(item.end.dateTime))
+          : null,
+        allDay,
+        location: item.location || "",
+        description: item.description || "",
+      };
+    })
+    // The API already sorts by start time, but keep the guarantee explicit
+    // (all-day events first, then timed events chronologically).
+    .sort((a, b) => (b.allDay - a.allDay) || (a.start - b.start));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDERING
+   ══════════════════════════════════════════════════════════════ */
+function showLoading() {
+  content.innerHTML = `
+    <div class="state">
+      <div class="spinner"></div>
+      <h3>Loading events…</h3>
+      <p>Fetching ${escapeHtml(selectedDate.toLocaleDateString(undefined, { month: "long", day: "numeric" }))}</p>
+    </div>`;
+}
+
+function showError(err) {
+  content.innerHTML = `
+    <div class="state error">
+      <span class="emoji">⚠️</span>
+      <h3>Couldn’t load events</h3>
+      <p>Something went wrong while talking to Google Calendar.</p>
+      <div class="error-detail">${escapeHtml(err.message)}</div>
+    </div>`;
+}
+
+function renderEvents(events) {
+  dayEvents = events;  // keep the unfiltered list so chip clicks can re-render
+
+  const filtered = locationFilter
+    ? events.filter((ev) => matchesLocation(ev.location, locationFilter))
+    : events;
+
+  if (!filtered.length) {
+    const label = isSameDay(selectedDate, new Date()) ? "today" : "on this day";
+    const hint = locationFilter && events.length
+      ? `No ${escapeHtml(locationFilter)} events — try another venue or “All venues”.`
+      : "Enjoy the free time — or pick another date above.";
+    content.innerHTML = `
+      <div class="state">
+        <span class="emoji">🌤️</span>
+        <h3>No events ${label}</h3>
+        <p>${hint}</p>
+      </div>`;
+    return;
+  }
+
+  // Currently-happening events jump to the top, then all-day events,
+  // then the rest chronologically. Decided at render time so the order
+  // stays correct as events go live between auto-refreshes.
+  const now = new Date();
+  const isLive = (ev) => !ev.allDay && ev.end && ev.start <= now && now < ev.end;
+  const sorted = [...filtered].sort((a, b) =>
+    (isLive(b) - isLive(a)) || (b.allDay - a.allDay) || (a.start - b.start));
+
+  content.innerHTML = sorted.map((ev) => {
+    const live = isLive(ev);
+    const classes = "event" + (live ? " live" : "") + (ev.allDay ? " allday" : "");
+
+    const time = ev.allDay
+      ? '<div class="start">All day</div>'
+      : `<div class="start">${formatTime(ev.start)}</div>
+         ${ev.end ? `<div class="end">${formatTime(ev.end)}</div>` : ""}`;
+
+    const meta = [];
+    if (!ev.allDay && ev.end) {
+      meta.push("🕐 " + formatTime(ev.start) + " – " + formatTime(ev.end));
+    }
+    if (ev.location) meta.push("📍 " + escapeHtml(ev.location));
+
+    return `
+      <article class="${classes}">
+        <div class="event-time">${time}</div>
+        <div class="event-rail"></div>
+        <div class="event-body">
+          <div class="event-title">
+            ${escapeHtml(ev.title)}
+            ${live ? '<span class="live-badge">Now</span>' : ""}
+          </div>
+          ${meta.length ? `<div class="event-meta">${meta.map((m) => `<span>${m}</span>`).join("")}</div>` : ""}
+          ${ev.description ? `<div class="event-desc">${escapeHtml(stripHtml(ev.description))}</div>` : ""}
+        </div>
+      </article>`;
+  }).join("");
+}
+
+function noteRefreshed() {
+  $("refresh-info").textContent =
+    "Updated " + new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    + " · auto-refreshes every 5 min";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TIMERS — auto-refresh + live-badge updates
+   ══════════════════════════════════════════════════════════════ */
+function startTimers() {
+  stopTimers();
+  refreshTimer = setInterval(refreshQuietly, REFRESH_INTERVAL_MS);
+  liveTimer = setInterval(updateLiveBadges, LIVE_TICK_MS);
+}
+
+function stopTimers() {
+  clearInterval(refreshTimer);
+  clearInterval(liveTimer);
+}
+
+/* Cheap once-a-minute pass: re-render is overkill, so just toggle
+   the "Now" badge state would require event data; simplest correct
+   approach is a quiet refetch-free re-render via stored DOM — here
+   we simply trigger a quiet refresh only when viewing today. */
+function updateLiveBadges() {
+  if (isSameDay(selectedDate, new Date())) refreshQuietly();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HELPERS
+   ══════════════════════════════════════════════════════════════ */
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear()
+      && a.getMonth() === b.getMonth()
+      && a.getDate() === b.getDate();
+}
+
+/* Venue filter match: case- and accent-insensitive substring, so
+   "Kobuci" matches "Kobuci Kert" and "A38" matches "A38 Hajó". */
+function matchesLocation(location, venue) {
+  const norm = (s) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return norm(location).includes(norm(venue));
+}
+
+/* "YYYY-MM-DD" → local Date (avoids the UTC shift of new Date(str)) */
+function parseDateInput(str) {
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toDateInputValue(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function formatTime(d) {
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+/* Google Calendar descriptions may contain HTML — show plain text. */
+function stripHtml(str) {
+  const div = document.createElement("div");
+  div.innerHTML = str;
+  return div.textContent || "";
+}
+
+function friendlyError(err) {
+  if (err.isAuth) return "That API key was rejected by Google: " + err.message;
+  return err.message;
+}
+</script>
+</body>
+</html>

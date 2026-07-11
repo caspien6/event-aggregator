@@ -3,6 +3,7 @@ using EventCalendarCollector.Web.Jobs;
 using EventCalendarCollector.Web.Publishing;
 using EventCalendarCollector.Web.Publishing.Google;
 using EventCalendarCollector.Web.Scrapers.A38;
+using EventCalendarCollector.Web.Scrapers.Britishmood;
 using EventCalendarCollector.Web.Scrapers.BudapestPark;
 using EventCalendarCollector.Web.Scrapers.Kobuci;
 using Hangfire;
@@ -20,6 +21,8 @@ builder.Services.AddSingleton<BudapestParkEventParser>();
 builder.Services.AddScraper<BudapestParkScraper>();
 builder.Services.AddSingleton<KobuciEventParser>();
 builder.Services.AddScraper<KobuciScraper>();
+builder.Services.AddSingleton<BritishmoodEventParser>();
+builder.Services.AddScraper<BritishmoodScraper>();
 
 // Publisher
 builder.Services.AddSingleton<ICalendarPublisher, GoogleCalendarPublisher>();
@@ -60,6 +63,14 @@ RecurringJob.AddOrUpdate<EventSyncJob>(
     "kobuci-sync",
     job => job.RunSingleAsync("Kobuci", CancellationToken.None),
     app.Configuration["Scrapers:Kobuci:CronSchedule"] ?? "0 1-23/6 * * *");
+
+// Britishmood-only sync, offset from the other jobs. Runs shortly before the
+// venue syncs would overwrite a shared event, and its URL matching relies on
+// the venue events already being in the calendar.
+RecurringJob.AddOrUpdate<EventSyncJob>(
+    "britishmood-sync",
+    job => job.RunSingleAsync("Britishmood", CancellationToken.None),
+    app.Configuration["Scrapers:Britishmood:CronSchedule"] ?? "0 2-23/6 * * *");
 
 // Manual trigger endpoints
 app.MapPost("/api/sync/run", async (IBackgroundJobClient jobs) =>

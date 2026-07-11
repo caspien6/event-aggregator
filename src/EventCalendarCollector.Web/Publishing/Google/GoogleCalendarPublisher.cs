@@ -6,7 +6,7 @@ using Google.Apis.Services;
 
 namespace EventCalendarCollector.Web.Publishing.Google;
 
-public class GoogleCalendarPublisher : ICalendarPublisher
+public partial class GoogleCalendarPublisher : ICalendarPublisher
 {
     // Google Calendar events only support 11 fixed colors; names outside that
     // palette are aliased to the closest one (e.g. Pumpkin -> Tangerine).
@@ -57,7 +57,7 @@ public class GoogleCalendarPublisher : ICalendarPublisher
 
     public async Task PublishAsync(IReadOnlyList<ScrapedEvent> events, CancellationToken ct = default)
     {
-        var existing = await FetchExistingEventIdsAsync(ct);
+        var existing = await FetchExistingEventsAsync(ct);
 
         foreach (var ev in events)
         {
@@ -65,22 +65,60 @@ public class GoogleCalendarPublisher : ICalendarPublisher
             var isCancelled = ev.TicketStatus?.Contains("Cancel", StringComparison.OrdinalIgnoreCase) == true
                            || ev.TicketStatus?.Contains("Elmarad", StringComparison.OrdinalIgnoreCase) == true;
 
+            // The same real-world event may already be in the calendar from
+            // another scraper under a different name; recognize it by the URLs
+            // pointing at the original event.
+            (string Id, string? ColorId)? urlMatch = null;
+            if (ev.OriginalEventUrls is { Count: > 0 })
+            {
+                foreach (var candidate in ev.OriginalEventUrls)
+                {
+                    var key = NormalizeUrlKey(candidate);
+                    if (key is not null && existing.ByUrlKey.TryGetValue(key, out var match) && match.Id != stableId)
+                    {
+                        urlMatch = match;
+                        break;
+                    }
+                }
+            }
+
+            // If this event once got its own entry (e.g. the URL evidence was
+            // missing on an earlier run) and now matches another scraper's
+            // entry, remove the standalone duplicate.
+            if (urlMatch is not null && existing.Ids.Contains(stableId))
+            {
+                await _service.Events.Delete(_calendarId, stableId).ExecuteAsync(ct);
+                existing.Ids.Remove(stableId);
+                _logger.LogInformation("Deleted duplicate entry of {Title}; it matches an existing event by URL", ev.Title);
+            }
+
             if (isCancelled)
             {
-                if (existing.Contains(stableId))
+                if (existing.Ids.Contains(stableId))
                 {
                     await _service.Events.Delete(_calendarId, stableId).ExecuteAsync(ct);
                     _logger.LogInformation("Deleted cancelled event: {Title}", ev.Title);
                 }
+                else if (urlMatch is not null)
+                {
+                    // The matched entry belongs to another scraper; let that
+                    // scraper decide when its own event is cancelled.
+                    _logger.LogInformation(
+                        "Cancelled event {Title} matches an existing entry by URL; leaving it to its own source", ev.Title);
+                }
                 continue;
             }
 
-            var calEvent = BuildCalendarEvent(ev, stableId);
+            var targetId = existing.Ids.Contains(stableId) ? stableId : urlMatch?.Id ?? stableId;
+            var calEvent = BuildCalendarEvent(ev, targetId, fallbackColorId: urlMatch?.ColorId);
 
-            if (existing.Contains(stableId))
+            if (existing.Ids.Contains(targetId))
             {
-                await _service.Events.Update(calEvent, _calendarId, stableId).ExecuteAsync(ct);
-                _logger.LogDebug("Updated event: {Title}", ev.Title);
+                await _service.Events.Update(calEvent, _calendarId, targetId).ExecuteAsync(ct);
+                if (urlMatch is not null)
+                    _logger.LogInformation("Updated existing event matched by URL: {Title}", ev.Title);
+                else
+                    _logger.LogDebug("Updated event: {Title}", ev.Title);
             }
             else
             {
@@ -90,9 +128,14 @@ public class GoogleCalendarPublisher : ICalendarPublisher
         }
     }
 
-    private async Task<HashSet<string>> FetchExistingEventIdsAsync(CancellationToken ct)
+    private sealed record ExistingEvents(
+        HashSet<string> Ids,
+        Dictionary<string, (string Id, string? ColorId)> ByUrlKey);
+
+    private async Task<ExistingEvents> FetchExistingEventsAsync(CancellationToken ct)
     {
         var ids = new HashSet<string>();
+        var byUrlKey = new Dictionary<string, (string, string?)>();
         var req = _service.Events.List(_calendarId);
         req.MaxResults = 2500;
         req.SingleEvents = true;
@@ -102,15 +145,46 @@ public class GoogleCalendarPublisher : ICalendarPublisher
         {
             var page = await req.ExecuteAsync(ct);
             foreach (var ev in page.Items ?? [])
-                if (ev.Id is not null)
-                    ids.Add(ev.Id);
+            {
+                if (ev.Id is null) continue;
+                ids.Add(ev.Id);
+
+                // Index every URL the entry carries (source link + links in the
+                // description) so other scrapers can find it.
+                var urls = UrlPattern().Matches(ev.Description ?? string.Empty).Select(m => m.Value);
+                if (ev.Source?.Url is not null)
+                    urls = urls.Append(ev.Source.Url);
+                foreach (var url in urls)
+                {
+                    var key = NormalizeUrlKey(url);
+                    if (key is not null)
+                        byUrlKey.TryAdd(key, (ev.Id, ev.ColorId));
+                }
+            }
             req.PageToken = page.NextPageToken;
         } while (req.PageToken is not null);
 
-        return ids;
+        return new ExistingEvents(ids, byUrlKey);
     }
 
-    private Event BuildCalendarEvent(ScrapedEvent ev, string stableId)
+    // Reduces a URL to "host|last-path-segment" so the same event matches across
+    // cosmetic differences (query strings, /events/ vs /jegyvasarlas/event/ paths).
+    private static string? NormalizeUrlKey(string url)
+    {
+        if (!Uri.TryCreate(url.Trim().TrimEnd('.', ',', ')'), UriKind.Absolute, out var uri))
+            return null;
+
+        var host = uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
+            ? uri.Host[4..]
+            : uri.Host;
+        var lastSegment = uri.AbsolutePath.Trim('/').Split('/').LastOrDefault();
+        if (string.IsNullOrEmpty(lastSegment))
+            return null;
+
+        return $"{host.ToLowerInvariant()}|{lastSegment.ToLowerInvariant()}";
+    }
+
+    private Event BuildCalendarEvent(ScrapedEvent ev, string stableId, string? fallbackColorId = null)
     {
         var description = BuildDescription(ev);
         var endTime = ev.EndTime ?? ev.StartTime.AddHours(3);
@@ -124,9 +198,12 @@ public class GoogleCalendarPublisher : ICalendarPublisher
             Start = new EventDateTime { DateTimeDateTimeOffset = ev.StartTime },
             End = new EventDateTime { DateTimeDateTimeOffset = endTime },
             Source = new Event.SourceData { Title = ev.SourceName, Url = ev.Url },
-            ColorId = _colorIdBySource.GetValueOrDefault(ev.SourceName)
+            ColorId = _colorIdBySource.GetValueOrDefault(ev.SourceName) ?? fallbackColorId
         };
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"https?://[^\s<>""]+")]
+    private static partial System.Text.RegularExpressions.Regex UrlPattern();
 
     private static string BuildDescription(ScrapedEvent ev)
     {

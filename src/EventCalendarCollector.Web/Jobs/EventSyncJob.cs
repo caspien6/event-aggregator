@@ -1,3 +1,4 @@
+using EventCalendarCollector.Web.Categorization;
 using EventCalendarCollector.Web.Publishing;
 using EventCalendarCollector.Web.Scrapers;
 using Model.Domain;
@@ -7,15 +8,18 @@ namespace EventCalendarCollector.Web.Jobs;
 public class EventSyncJob
 {
     private readonly IEnumerable<IEventScraper> _scrapers;
+    private readonly IEventCategorizer _categorizer;
     private readonly ICalendarPublisher _publisher;
     private readonly ILogger<EventSyncJob> _logger;
 
     public EventSyncJob(
         IEnumerable<IEventScraper> scrapers,
+        IEventCategorizer categorizer,
         ICalendarPublisher publisher,
         ILogger<EventSyncJob> logger)
     {
         _scrapers = scrapers;
+        _categorizer = categorizer;
         _publisher = publisher;
         _logger = logger;
     }
@@ -54,6 +58,8 @@ public class EventSyncJob
             return;
         }
 
-        await _publisher.PublishAsync(result.Events, ct);
+        IReadOnlyList<ScrapedEvent> categorized = _categorizer.Categorize(result.Events);
+
+        await _publisher.PublishAsync(categorized, ct);
     }
 }

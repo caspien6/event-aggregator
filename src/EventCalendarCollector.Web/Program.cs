@@ -1,3 +1,4 @@
+using EventCalendarCollector.Web.Categorization;
 using EventCalendarCollector.Web.Infrastructure;
 using EventCalendarCollector.Web.Jobs;
 using EventCalendarCollector.Web.Publishing;
@@ -23,6 +24,9 @@ builder.Services.AddSingleton<KobuciEventParser>();
 builder.Services.AddScraper<KobuciScraper>();
 builder.Services.AddSingleton<BritishmoodEventParser>();
 builder.Services.AddScraper<BritishmoodScraper>();
+
+// Categorization
+builder.Services.AddSingleton<IEventCategorizer, KeywordEventCategorizer>();
 
 // Publisher
 builder.Services.AddSingleton<ICalendarPublisher, GoogleCalendarPublisher>();

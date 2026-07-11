@@ -16,4 +16,9 @@ public record ScrapedEvent(
     // recognize an event that another scraper already put in the calendar
     // under a different name.
     IReadOnlyList<string>? OriginalEventUrls = null
-);
+)
+{
+    // Category names assigned by the categorization step from keyword
+    // matching on Title/Description. Empty until that step has run.
+    public IReadOnlyList<string> Categories { get; init; } = [];
+}

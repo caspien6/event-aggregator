@@ -23,7 +23,9 @@ public class EventSyncJob
     {
         _logger.LogInformation("Starting full sync across all scrapers");
         foreach (var scraper in _scrapers)
+        {
             await RunOneAsync(scraper, ct);
+        }
         _logger.LogInformation("Full sync complete");
     }
 

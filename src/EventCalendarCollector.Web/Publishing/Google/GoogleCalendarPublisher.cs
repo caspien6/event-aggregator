@@ -1,3 +1,6 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using EventCalendarCollector.Web.Domain;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Calendar.v3;
@@ -6,7 +9,7 @@ using Google.Apis.Services;
 
 namespace EventCalendarCollector.Web.Publishing.Google;
 
-public partial class GoogleCalendarPublisher : ICalendarPublisher
+public class GoogleCalendarPublisher : ICalendarPublisher
 {
     // Google Calendar events only support 11 fixed colors; names outside that
     // palette are aliased to the closest one (e.g. Pumpkin -> Tangerine).
@@ -122,7 +125,15 @@ public partial class GoogleCalendarPublisher : ICalendarPublisher
             }
             else
             {
-                await _service.Events.Insert(calEvent, _calendarId).ExecuteAsync(ct);
+                try
+                {
+                    await _service.Events.Insert(calEvent, _calendarId).ExecuteAsync(ct);
+                }
+                catch (Exception ex)
+                {
+                    _service.Events.Delete(_calendarId, stableId);
+                    await _service.Events.Insert(calEvent, _calendarId).ExecuteAsync(ct);
+                }
                 _logger.LogDebug("Created event: {Title}", ev.Title);
             }
         }
@@ -149,12 +160,10 @@ public partial class GoogleCalendarPublisher : ICalendarPublisher
                 if (ev.Id is null) continue;
                 ids.Add(ev.Id);
 
-                // Index every URL the entry carries (source link + links in the
-                // description) so other scrapers can find it.
-                var urls = UrlPattern().Matches(ev.Description ?? string.Empty).Select(m => m.Value);
-                if (ev.Source?.Url is not null)
-                    urls = urls.Append(ev.Source.Url);
-                foreach (var url in urls)
+                // Index every URL the entry's JSON description carries so other
+                // scrapers can find it. Entries whose description isn't the JSON
+                // format (legacy plain text) are left out of the URL index.
+                foreach (var url in ExtractUrlsFromDescription(ev.Description))
                 {
                     var key = NormalizeUrlKey(url);
                     if (key is not null)
@@ -202,21 +211,45 @@ public partial class GoogleCalendarPublisher : ICalendarPublisher
         };
     }
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"https?://[^\s<>""]+")]
-    private static partial System.Text.RegularExpressions.Regex UrlPattern();
-
-    private static string BuildDescription(ScrapedEvent ev)
+    // Relaxed escaping keeps URLs and accented characters verbatim so the
+    // description stays readable and round-trips through the URL index.
+    private static readonly JsonSerializerOptions DescriptionJsonOptions = new()
     {
-        var parts = new List<string>();
-        if (!string.IsNullOrEmpty(ev.Description))
-            parts.Add(ev.Description);
-        if (ev.Genres.Count > 0)
-            parts.Add($"Genres: {string.Join(", ", ev.Genres)}");
-        if (!string.IsNullOrEmpty(ev.TicketStatus))
-            parts.Add($"Tickets: {ev.TicketStatus}");
-        parts.Add(ev.Url);
-        return string.Join("\n\n", parts);
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
+    private static string BuildDescription(ScrapedEvent ev) =>
+        JsonSerializer.Serialize(ev, DescriptionJsonOptions);
+
+    private static IReadOnlyList<string> ExtractUrlsFromDescription(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+            return [];
+
+        DescriptionDetails? details;
+        try
+        {
+            details = JsonSerializer.Deserialize<DescriptionDetails>(description, DescriptionJsonOptions);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+        if (details is null)
+            return [];
+
+        var urls = new List<string>();
+        if (!string.IsNullOrEmpty(details.Url))
+            urls.Add(details.Url);
+        if (details.OriginalEventUrls is not null)
+            urls.AddRange(details.OriginalEventUrls);
+        return urls;
     }
+
+    private sealed record DescriptionDetails(string? Url, IReadOnlyList<string>? OriginalEventUrls);
 
     // Google Calendar event IDs must be 5-1024 chars, [a-v0-9] only.
     // Hex chars (0-9, a-f) are a valid subset of that alphabet.

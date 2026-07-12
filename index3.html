@@ -42,6 +42,15 @@
   --error-bg: rgba(255, 107, 181, 0.14);
   --mono-bg: rgba(45, 33, 96, 0.08);
   --shadow: 0 4px 18px rgba(105, 89, 207, 0.25);
+
+  /* muted mosaic tile palette (light) — low-chroma tones around the
+     Y2K purple-pink family so adjacent tiles harmonize, never clash */
+  --tile-1: #e5e1f3;  /* soft lavender */
+  --tile-2: #f3e2ec;  /* dusty rose    */
+  --tile-3: #e3ece5;  /* pale sage     */
+  --tile-4: #f2ecdd;  /* warm sand     */
+  --tile-5: #dfe8f2;  /* powder blue   */
+  --tile-6: #ece3ef;  /* faded mauve   */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -76,6 +85,14 @@
     --error-bg: rgba(255, 140, 198, 0.12);
     --mono-bg: rgba(0, 0, 0, 0.28);
     --shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+
+    /* muted mosaic tile palette (dark) — deep desaturated navy/teal/plum */
+    --tile-1: #232f52;  /* muted navy  */
+    --tile-2: #3a2b46;  /* dim plum    */
+    --tile-3: #1f3a47;  /* deep teal   */
+    --tile-4: #2e2a45;  /* dusk violet */
+    --tile-5: #1c3550;  /* slate blue  */
+    --tile-6: #21404a;  /* pine teal   */
   }
 }
 
@@ -368,6 +385,118 @@ nav.datebar .spacer { flex: 1; }
   color: var(--allday);
 }
 
+/* ---------- home screen (full-bleed mosaic) ---------- */
+#homeScreen {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 150px);   /* fallback (header ≈ 150px) */
+  min-height: calc(100dvh - 150px);
+  padding: 0 clamp(12px, 3vw, 32px) 32px;
+}
+.home-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 2px 14px;
+}
+.home-top .chips { padding: 0; }
+
+/* ---------- mosaic grid ---------- */
+.mosaic {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-auto-rows: 130px;
+  grid-auto-flow: row;  /* NOT dense — keeps chronological reading order */
+  gap: 14px;
+  align-content: start;
+}
+.mosaic > .state { grid-column: 1 / -1; align-self: start; }
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  min-width: 0;
+  box-shadow: var(--shadow);
+  animation: riseIn 0.35s ease both;
+}
+.tile-big  { grid-column: span 2; grid-row: span 2; }
+.tile-wide { grid-column: span 2; }
+
+.tile .tile-date {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+.tile .tile-time { font-size: 0.8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile .tile-title {
+  margin: 2px 0 0;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tile-big .tile-title { font-size: 1.15rem; -webkit-line-clamp: 3; line-clamp: 3; }
+.tile .tile-loc {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile .tile-desc {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin: 4px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tile .tile-cats { margin-top: auto; font-size: 0.7rem; color: var(--text-soft); letter-spacing: 0.5px; }
+
+/* index-cycled muted backgrounds */
+.tile.tc1 { background: var(--tile-1); }
+.tile.tc2 { background: var(--tile-2); }
+.tile.tc3 { background: var(--tile-3); }
+.tile.tc4 { background: var(--tile-4); }
+.tile.tc5 { background: var(--tile-5); }
+.tile.tc6 { background: var(--tile-6); }
+
+/* "Load more" clickable text below the mosaic */
+.load-more {
+  text-align: center;
+  padding: 20px 6px 4px;
+  font-size: 0.85rem;
+}
+.load-more a {
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 480px) {
+  .mosaic { grid-auto-rows: 120px; }
+}
+@media (max-width: 340px) {
+  .tile-big, .tile-wide { grid-column: auto; grid-row: auto; }
+}
+
 /* ---------- state cards (loading / empty / error) ---------- */
 .state {
   text-align: center;
@@ -410,7 +539,7 @@ nav.datebar .spacer { flex: 1; }
   50%      { opacity: 0.35; transform: scale(0.75); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .event-card, .state { animation: none; }
+  .event-card, .state, .tile { animation: none; }
 }
 </style>
 </head>
@@ -452,6 +581,7 @@ nav.datebar .spacer { flex: 1; }
     </nav>
 
     <div class="toolbar">
+      <a id="homeLink">◂ Home</a>
       <span id="updatedLabel"></span>
       <a id="changeKeyLink">Change API key</a>
     </div>
@@ -462,6 +592,19 @@ nav.datebar .spacer { flex: 1; }
     <main id="agenda"></main>
   </section>
 </div>
+
+<!-- ============ HOME SCREEN (category chooser + upcoming mosaic) ============ -->
+<!-- Sibling of .wrap so the mosaic spans the full viewport width. -->
+<section id="homeScreen" class="hidden">
+  <div class="home-top">
+    <div class="chips" id="homeCategoryChips"></div>
+    <button type="button" id="openAgendaBtn">Open day agenda ▸</button>
+  </div>
+  <div class="mosaic" id="mosaic"></div>
+  <div class="load-more hidden" id="loadMoreWrap">
+    <a id="loadMoreLink">Load more ✦</a>
+  </div>
+</section>
 
 <script>
 "use strict";
@@ -475,6 +618,10 @@ nav.datebar .spacer { flex: 1; }
   const REFRESH_INTERVAL_MS = 5 * 60 * 1000;  // auto-refresh cadence
   const LIVE_TICK_MS = 60 * 1000;             // live-status re-check cadence
   const DAY_START_HOUR = 8;                   // agenda day starts at 8:00 AM
+  const UPCOMING_WINDOW_MONTHS = 3;          // home mosaic look-ahead window
+  const PAGE_SIZE = 100;                     // events fetched per request
+  const MOSAIC_GAP = 14;                     // mirrors .mosaic gap
+  const MOSAIC_MIN_TILE = 170;               // mirrors .mosaic minmax() column width
   const VENUES = ["A38", "Budapest Park", "Kobuci"];  // location filter chips
   const CATEGORIES = ["Bolhás Macska", "Concert", "Party"]; // category filter chips
 
@@ -485,6 +632,15 @@ nav.datebar .spacer { flex: 1; }
   let events = [];                           // fetched events for selectedDate
   let activeVenue = null;                    // null = "All venues"
   let activeCategories = [];                 // empty = all categories
+  let homeEvents = [];                       // upcoming events for the home mosaic
+  let homeActiveCategory = null;             // null = "All" on the home chooser
+  let homeNextPageToken = null;              // more pages exist while non-null
+  let homeLoadingMore = false;               // "Load more" in flight
+  let homeTimeWindow = null;                 // frozen {timeMin,timeMax} while paging
+  let homeDataReady = false;                 // page 1 applied (guards resize repack)
+  let homeLayoutSeed = 0;                    // PRNG seed for the mosaic packer
+  let homeLastColumnCount = 0;               // column count of the last render
+  let mosaicResizeTimer = null;              // debounce for the resize repack
   let fetchSeq = 0;                          // out-of-order response guard
   let refreshTimer = null;                   // auto-refresh interval id
   let liveTimer = null;                      // live-tick interval id
@@ -507,6 +663,13 @@ nav.datebar .spacer { flex: 1; }
   const $chips       = document.getElementById("venueChips");
   const $catChips    = document.getElementById("categoryChips");
   const $agenda      = document.getElementById("agenda");
+  const $home        = document.getElementById("homeScreen");
+  const $mosaic      = document.getElementById("mosaic");
+  const $homeCatChips = document.getElementById("homeCategoryChips");
+  const $openAgenda  = document.getElementById("openAgendaBtn");
+  const $homeLink    = document.getElementById("homeLink");
+  const $loadMoreWrap = document.getElementById("loadMoreWrap");
+  const $loadMoreLink = document.getElementById("loadMoreLink");
 
   /* ==============================================================
      INIT
@@ -523,12 +686,24 @@ nav.datebar .spacer { flex: 1; }
     $changeKey.addEventListener("click", function () {
       resetToSetup("");
     });
+    $openAgenda.addEventListener("click", function () { enterCalendarView(null); });
+    $homeLink.addEventListener("click", function () { enterHomeView(null); });
+    $loadMoreLink.addEventListener("click", loadMoreUpcoming);
+    // repack the mosaic when the viewport changes the column count (debounced)
+    window.addEventListener("resize", function () {
+      clearTimeout(mosaicResizeTimer);
+      mosaicResizeTimer = setTimeout(function () {
+        if ($home.classList.contains("hidden") || !homeDataReady) return;
+        if (computeMosaicColumns() !== homeLastColumnCount) renderMosaic();
+      }, 150);
+    });
     buildVenueChips();
     buildCategoryChips();
+    buildHomeCategoryChips();
 
-    // key already stored this session? → straight to calendar view
+    // key already stored this session? → straight to the home mosaic
     if (sessionStorage.getItem(API_KEY_STORAGE)) {
-      enterCalendarView(null);
+      enterHomeView(null);
     } else {
       showSetupScreen("");
     }
@@ -540,6 +715,7 @@ nav.datebar .spacer { flex: 1; }
   function showSetupScreen(message) {
     stopTimers();
     $calendar.classList.add("hidden");
+    $home.classList.add("hidden");
     $setup.classList.remove("hidden");
     if (message) {
       $setupError.textContent = message;
@@ -554,6 +730,7 @@ nav.datebar .spacer { flex: 1; }
   function resetToSetup(message) {
     sessionStorage.removeItem(API_KEY_STORAGE);
     fetchSeq++; // invalidate any in-flight fetch
+    homeDataReady = false;
     showSetupScreen(message);
   }
 
@@ -564,11 +741,11 @@ nav.datebar .spacer { flex: 1; }
     $setupSubmit.disabled = true;
     $setupError.classList.add("hidden");
     try {
-      // Validate by really fetching the selected day. Only store on success.
-      const items = await fetchDayEvents(key, selectedDate);
+      // Validate by really fetching the upcoming window. Only store on success.
+      const page = await fetchUpcomingEvents(key);
       sessionStorage.setItem(API_KEY_STORAGE, key);
       $apiKeyInput.value = "";
-      enterCalendarView(items); // reuse the fetched events — no second request
+      enterHomeView(page); // reuse the fetched page — no second request
     } catch (err) {
       $setupSubmit.disabled = false;
       $setupError.textContent = friendlyError(err);
@@ -577,11 +754,263 @@ nav.datebar .spacer { flex: 1; }
   }
 
   /* ==============================================================
+     HOME VIEW (category chooser + upcoming mosaic)
+     ============================================================== */
+  // preloadedPage: {events, nextPageToken} fetched during key validation, or null.
+  function enterHomeView(preloadedPage) {
+    $setup.classList.add("hidden");
+    $calendar.classList.add("hidden");
+    $home.classList.remove("hidden");
+    stopTimers(); // agenda auto-refresh only runs while the agenda is visible
+    fetchSeq++;   // supersede any in-flight agenda fetch
+    if (preloadedPage) {
+      applyUpcomingPage(preloadedPage);
+    } else {
+      loadUpcoming();
+    }
+  }
+
+  // Shared success path for page 1 of the upcoming window.
+  function applyUpcomingPage(page) {
+    homeEvents = page.events;
+    homeNextPageToken = page.nextPageToken;
+    homeLayoutSeed = (Math.random() * 0xffffffff) >>> 0; // fresh mosaic layout per load
+    homeDataReady = true;
+    renderMosaic();
+    updateLoadMoreLink();
+  }
+
+  /* --------------- home category chooser (single-select) --------------- */
+  function buildHomeCategoryChips() {
+    const names = [null].concat(CATEGORIES); // null = All
+    $homeCatChips.innerHTML = "";
+    names.forEach(function (category) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = category === null ? "All" : category;
+      b.addEventListener("click", function () {
+        homeActiveCategory = category;
+        updateHomeCategoryChipStates();
+        renderMosaic(); // client-side only — no network request
+      });
+      b.dataset.category = category === null ? "" : category;
+      $homeCatChips.appendChild(b);
+    });
+    updateHomeCategoryChipStates();
+  }
+
+  function updateHomeCategoryChipStates() {
+    Array.prototype.forEach.call($homeCatChips.children, function (chip) {
+      const c = chip.dataset.category || null;
+      chip.classList.toggle("active", c === homeActiveCategory);
+    });
+  }
+
+  /* --------------- upcoming-events loading --------------- */
+  async function loadUpcoming() {
+    const key = sessionStorage.getItem(API_KEY_STORAGE);
+    if (!key) { showSetupScreen(""); return; }
+
+    const seq = ++fetchSeq; // capture; discard result if superseded
+    homeNextPageToken = null;
+    homeDataReady = false;
+    updateLoadMoreLink(); // hide a stale link while the spinner shows
+    $mosaic.innerHTML =
+      '<div class="state card">' +
+        '<div class="spinner" role="status" aria-label="Loading"></div>' +
+        "<p>Loading upcoming events…</p>" +
+      "</div>";
+
+    try {
+      const page = await fetchUpcomingEvents(key);
+      if (seq !== fetchSeq) return; // stale response — discard
+      applyUpcomingPage(page);
+    } catch (err) {
+      if (seq !== fetchSeq) return; // stale error — discard
+      if (err.auth) {
+        resetToSetup("Google rejected the API key: " + err.message);
+        return;
+      }
+      const friendly = friendlyError(err);
+      const technical = err.message || String(err);
+      $mosaic.innerHTML =
+        '<div class="state card error">' +
+          '<div class="big">⚠</div>' +
+          "<h3>Couldn't load events</h3>" +
+          "<p>" + escapeHtml(friendly) + "</p>" +
+          (technical !== friendly
+            ? '<div class="detail">' + escapeHtml(technical) + "</div>"
+            : "") +
+        "</div>";
+    }
+  }
+
+  // "Load more" click: fetch the next page and append it. The visible
+  // prefix keeps its layout because the packer's draw sequence is
+  // index-aligned (see packMosaic).
+  async function loadMoreUpcoming() {
+    if (homeLoadingMore || !homeNextPageToken) return;
+    const key = sessionStorage.getItem(API_KEY_STORAGE);
+    if (!key) { showSetupScreen(""); return; }
+
+    const seq = ++fetchSeq; // capture; discard result if superseded
+    homeLoadingMore = true;
+    updateLoadMoreLink(); // shows "Loading…"
+
+    try {
+      const page = await fetchUpcomingEvents(key, homeNextPageToken);
+      if (seq !== fetchSeq) return; // stale response — discard
+      homeEvents = homeEvents.concat(page.events);
+      homeNextPageToken = page.nextPageToken;
+      renderMosaic();
+    } catch (err) {
+      if (seq !== fetchSeq) return; // stale error — discard
+      if (err.auth) {
+        resetToSetup("Google rejected the API key: " + err.message);
+        return;
+      }
+      // non-auth failure: keep the mosaic; the link reverts so the user can retry
+    } finally {
+      homeLoadingMore = false;
+      updateLoadMoreLink(); // never leave the link stuck at "Loading…"
+    }
+  }
+
+  // Link visibility is driven purely by the page token, never by the
+  // category filter — later pages may contain the filtered category.
+  function updateLoadMoreLink() {
+    $loadMoreWrap.classList.toggle("hidden", homeNextPageToken === null);
+    $loadMoreLink.textContent = homeLoadingMore ? "Loading…" : "Load more ✦";
+  }
+
+  /* --------------- mosaic rendering --------------- */
+  // Small seeded PRNG so a layout is reproducible within one data load.
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // JS owns the column count so the packer and the grid always agree.
+  function computeMosaicColumns() {
+    // mirrors the old ≤480px CSS rule — the width formula alone would give 1
+    if (window.matchMedia("(max-width: 480px)").matches) return 2;
+    return Math.max(1, Math.floor(
+      ($mosaic.clientWidth + MOSAIC_GAP) / (MOSAIC_MIN_TILE + MOSAIC_GAP)));
+  }
+
+  // Assigns a random size ("big" | "wide" | "single") to each of n tiles in
+  // a C-column grid, hole-free by construction: a size is only eligible when
+  // the tile fits exactly at the sparse row-flow cursor, so no free cell is
+  // ever skipped and source order stays the visual reading order.
+  function packMosaic(n, C, rand) {
+    const sizes = [];
+    const rows = []; // rows[r][c] === true when occupied
+    function row(r) {
+      if (!rows[r]) rows[r] = new Array(C).fill(false);
+      return rows[r];
+    }
+    function freeInRow(r) {
+      let free = 0;
+      for (let k = 0; k < C; k++) if (!row(r)[k]) free++;
+      return free;
+    }
+    let r = 0, c = 0;
+    for (let i = 0; i < n; i++) {
+      while (row(r)[c]) { // advance cursor to the first free cell
+        c++;
+        if (c >= C) { c = 0; r++; }
+      }
+      const canWide = c + 1 < C && !row(r)[c + 1];
+      // trailing guard: the tiles after a big must be able to cover every
+      // cell it leaves free in its two rows, or holes would sit above the
+      // last row when the list runs out
+      const canBig = canWide && !row(r + 1)[c] && !row(r + 1)[c + 1] &&
+        (n - i - 1) >= (freeInRow(r) - 2) + (freeInRow(r + 1) - 2);
+      // exactly one draw per tile keeps the sequence index-aligned, so the
+      // already-visible prefix reproduces identically after "Load more"
+      const d = rand();
+      let size = "single";
+      if (canBig && d < 0.15) size = "big";
+      else if (canWide && d < 0.35) size = "wide";
+      sizes.push(size);
+      row(r)[c] = true;
+      if (size !== "single") row(r)[c + 1] = true;
+      if (size === "big") { row(r + 1)[c] = true; row(r + 1)[c + 1] = true; }
+    }
+    return sizes;
+  }
+
+  function renderMosaic() {
+    const C = computeMosaicColumns();
+    $mosaic.style.gridTemplateColumns = "repeat(" + C + ", 1fr)";
+    homeLastColumnCount = C;
+
+    const now = new Date();
+    const filtered = homeEvents.filter(function (e) {
+      if (e.end < now) return false; // strictly upcoming or ongoing
+      if (homeActiveCategory !== null &&
+          !hasAnyCategory(e, [homeActiveCategory])) return false;
+      return true;
+    }).sort(function (a, b) { return a.start - b.start; }); // chronological ↑
+
+    if (filtered.length === 0) {
+      $mosaic.innerHTML =
+        '<div class="state card">' +
+          '<div class="big">✧</div>' +
+          "<p>" +
+          (homeActiveCategory !== null && homeEvents.length > 0
+            ? "No upcoming " + escapeHtml(homeActiveCategory) + ' events — try another category or "All".'
+            : "No upcoming events in the next " + UPCOMING_WINDOW_MONTHS + " months.") +
+          "</p>" +
+        "</div>";
+      return;
+    }
+
+    const sizes = packMosaic(filtered.length, C, mulberry32(homeLayoutSeed));
+    $mosaic.innerHTML = filtered.map(function (e, i) {
+      return mosaicTileHtml(e, sizes[i], i);
+    }).join("");
+  }
+
+  function mosaicTileHtml(e, sizeClass, i) {
+    const size = sizeClass === "big" ? " tile-big"
+               : sizeClass === "wide" ? " tile-wide" : "";
+    const color = " tc" + ((i % 6) + 1); // 6-cycle keeps neighbors distinct
+    const big = sizeClass === "big";
+
+    let html = '<article class="tile' + size + color +
+      '" style="animation-delay:' + (Math.min(i, 12) * 45) + 'ms">' +
+      '<div class="tile-date">' + escapeHtml(fmtShortDate(e.start)) + "</div>" +
+      '<div class="tile-time">' + (e.allDay ? "ALL DAY" : escapeHtml(fmtTime(e.start))) + "</div>" +
+      '<h3 class="tile-title">' + escapeHtml(e.title) + "</h3>";
+    if (e.location) {
+      html += '<div class="tile-loc">📍 ' + escapeHtml(e.location) + "</div>";
+    }
+    if (big) {
+      const descText = stripTags(e.description).trim();
+      if (descText) html += '<p class="tile-desc">' + escapeHtml(descText) + "</p>";
+      if (e.categories.length) {
+        html += '<div class="tile-cats">' + escapeHtml(e.categories.join(" · ")) + "</div>";
+      }
+    }
+    html += "</article>";
+    return html;
+  }
+
+  /* ==============================================================
      CALENDAR VIEW
      ============================================================== */
-  // preloadedEvents: events already fetched during key validation, or null.
+  // preloadedEvents: events already fetched for the agenda, or null.
   function enterCalendarView(preloadedEvents) {
     $setup.classList.add("hidden");
+    $home.classList.add("hidden");
     $calendar.classList.remove("hidden");
     syncDateControls();
     startTimers();
@@ -694,15 +1123,36 @@ nav.datebar .spacer { flex: 1; }
     const timeMax = new Date(day);
     timeMax.setDate(timeMax.getDate() + 1);
     timeMax.setHours(0, 0, 0, 0);
+    return (await fetchEvents(key, timeMin, timeMax)).events;
+  }
 
+  // Fetches one page of the home-mosaic window (now → now +
+  // UPCOMING_WINDOW_MONTHS). Google requires every param except pageToken
+  // to stay identical while paging, so the window computed for page 1 is
+  // frozen and reused for the token requests.
+  async function fetchUpcomingEvents(key, pageToken) {
+    if (!pageToken) {
+      const timeMin = new Date();
+      const timeMax = new Date();
+      timeMax.setMonth(timeMax.getMonth() + UPCOMING_WINDOW_MONTHS);
+      homeTimeWindow = { timeMin: timeMin, timeMax: timeMax };
+    }
+    return fetchEvents(key, homeTimeWindow.timeMin, homeTimeWindow.timeMax, pageToken);
+  }
+
+  // Core fetch: one page of expanded events in [timeMin, timeMax), sorted
+  // by start. Returns { events, nextPageToken } — a non-null token means
+  // more pages exist.
+  async function fetchEvents(key, timeMin, timeMax, pageToken) {
     const params = new URLSearchParams({
       key: key,
       singleEvents: "true",
       orderBy: "startTime",
       timeMin: timeMin.toISOString(),
       timeMax: timeMax.toISOString(),
-      maxResults: "100"
+      maxResults: String(PAGE_SIZE)
     });
+    if (pageToken) params.set("pageToken", pageToken);
     const url = "https://www.googleapis.com/calendar/v3/calendars/" +
       encodeURIComponent(CALENDAR_ID) + "/events?" + params.toString();
 
@@ -728,9 +1178,12 @@ nav.datebar .spacer { flex: 1; }
     }
 
     const data = await res.json();
-    return (data.items || [])
-      .filter(function (item) { return item.status !== "cancelled"; })
-      .map(mapEvent);
+    return {
+      events: (data.items || [])
+        .filter(function (item) { return item.status !== "cancelled"; })
+        .map(mapEvent),
+      nextPageToken: data.nextPageToken || null
+    };
   }
 
   // Map an API item to the shape the renderer uses.
@@ -985,6 +1438,12 @@ nav.datebar .spacer { flex: 1; }
   // localized short time, e.g. "7:30 PM" / "19:30"
   function fmtTime(d) {
     return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  // localized short date for mosaic tiles, e.g. "Jul 14 · Mon"
+  function fmtShortDate(d) {
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+      " · " + d.toLocaleDateString(undefined, { weekday: "short" });
   }
 
   // escape user-visible strings before innerHTML insertion
